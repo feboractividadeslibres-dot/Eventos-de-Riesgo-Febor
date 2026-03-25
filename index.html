@@ -2483,46 +2483,82 @@ function updateLastLoadedBadge(fileName, date){
   }
 }
 
-// URL del Excel en GitHub (raw)
-const GITHUB_EXCEL_URL = 'https://raw.githubusercontent.com/feboractividadeslibres-dot/Eventos-de-Riesgo-Febor/main/Evento_Riesgo_Febor.xlsx';
+// URL del JSON generado automáticamente por GitHub Actions
+const GITHUB_JSON_URL = 'https://raw.githubusercontent.com/feboractividadeslibres-dot/Eventos-de-Riesgo-Febor/main/datos.json';
 
 async function bootDashboard(){
   showLoad(true);
   document.getElementById('lo').querySelector('.lt').textContent='Cargando datos desde GitHub…';
 
-  // ── Cargar Excel directo desde GitHub ──
+  // ── Cargar datos.json desde GitHub ──
   try{
-    const resp = await fetch(GITHUB_EXCEL_URL + '?t=' + Date.now()); // cache-bust
+    const resp = await fetch(GITHUB_JSON_URL + '?t=' + Date.now());
     if(resp.ok){
-      const ab = await resp.arrayBuffer();
-      const wb = XLSX.read(ab, {type:'array', cellDates:true});
-      const now = new Date().toLocaleString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-      parseWB(wb, 'GitHub · Evento_Riesgo_Febor.xlsx · '+now);
-      showLoad(false);
-      return;
+      const data = await resp.json();
+      const eventos = data.eventos || [];
+      const tareas  = data.tareas  || [];
+      if(eventos.length > 0){
+        allE = eventos.map(r => {
+          const c = {};
+          for(const k in r){
+            c[k] = r[k];
+            const kn = k.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+            if(kn !== k) c[kn] = r[k];
+          }
+          return c;
+        });
+        allT = tareas.map(r => {
+          const c = {};
+          for(const k in r){
+            c[k] = r[k];
+            const kn = k.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+            if(kn !== k) c[kn] = r[k];
+          }
+          c['_NE']   = parseInt(c['N° EVENTO']||c['N° Evento']||c['NUMERO EVENTO']||0);
+          c['_NT']   = c['N° TAREA']||c['N° Tarea']||c['NUMERO TAREA']||'';
+          c['_DESC'] = c['DESCRIPCIÓN DE LA TAREA']||c['DESCRIPCION DE LA TAREA']||c['DESCRIPCION']||'';
+          c['_TIPO'] = (c['TIPO DE ACCIÓN']||c['TIPO DE ACCION']||'').toUpperCase().includes('PREV') ? 'PREVENTIVA' : 'CORRECTIVA';
+          c['_RESP'] = c['RESPONSABLE']||'';
+          c['_NOMB'] = c['NOMBRE']||'';
+          c['_FI']   = c['FECHA DE INICIO']||c['F. INICIO']||c['FECHA INICIO']||'';
+          c['_FF']   = c['FECHA DE FINALIZACIÓN']||c['FECHA DE FINALIZACION']||c['F. FINALIZACIÓN']||c['F. FIN']||'';
+          c['_EST']  = c['ESTADO']||'';
+          return c;
+        });
+        loaded = true;
+        filtE = [...allE]; filtT = [...allT];
+        document.getElementById('emptyBanner').style.display = 'none';
+        document.getElementById('tcE').textContent = allE.length;
+        document.getElementById('tcT').textContent = allT.length;
+        updateLastLoadedBadge('GitHub · datos actualizados', new Date());
+        buildFiltersE(); buildFiltersT(); renderAll();
+        saveToStorage('datos.json', allE, allT);
+        showLoad(false);
+        return;
+      }
     }
   } catch(e){
-    console.warn('[GitHub] No se pudo cargar Excel:', e.message);
+    console.warn('[GitHub JSON] Error:', e.message);
   }
 
-  // ── Fallback: datos guardados en storage ──
+  // ── Fallback: caché local ──
   document.getElementById('lo').querySelector('.lt').textContent='Sin conexión — cargando datos guardados…';
   try{
-    const saved=await loadFromStorage();
-    if(saved && saved.allE && saved.allE.length>0){
-      allE=saved.allE; allT=saved.allT||[];
-      loaded=true; filtE=[...allE]; filtT=[...allT];
-      document.getElementById('emptyBanner').style.display='none';
-      document.getElementById('tcE').textContent=allE.length;
-      document.getElementById('tcT').textContent=allT.length;
-      updateLastLoadedBadge(saved.meta.fileName||'datos guardados', saved.meta.savedAt);
+    const saved = await loadFromStorage();
+    if(saved && saved.allE && saved.allE.length > 0){
+      allE = saved.allE; allT = saved.allT || [];
+      loaded = true; filtE = [...allE]; filtT = [...allT];
+      document.getElementById('emptyBanner').style.display = 'none';
+      document.getElementById('tcE').textContent = allE.length;
+      document.getElementById('tcT').textContent = allT.length;
+      updateLastLoadedBadge(saved.meta.fileName||'caché local', saved.meta.savedAt);
       buildFiltersE(); buildFiltersT(); renderAll();
       showLoad(false);
     } else {
       showLoad(false);
     }
-  }catch(e){
-    console.warn('Boot load failed:',e);
+  } catch(e){
+    console.warn('Boot load failed:', e);
     showLoad(false);
   }
 }
