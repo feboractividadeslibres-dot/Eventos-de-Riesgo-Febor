@@ -1,0 +1,2571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Dashboard · Gestión de Riesgos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0d2340;--navy2:#163257;--navy3:#1e4a7a;
+  --bg:#f0f3f8;--surface:#fff;--surface2:#f7f9fc;
+  --border:#dde3ed;--border2:#c8d4e4;
+  --text:#1a2638;--text2:#4a5870;--muted:#8898b0;
+  --green:#1a7040;--green-lt:#e6f5ed;--green-bd:#a8dcc0;
+  --orange:#c85a00;--orange-lt:#fff0e0;--orange-bd:#fdc88a;--orange-md:#e67300;
+  --red:#b52a20;--red-lt:#fdecea;--red-bd:#f2b0ab;
+  --blue:#1452a8;--blue-lt:#e6f0fd;--blue-bd:#a0c0f0;
+  --font:'Inter',-apple-system,sans-serif;--mono:'IBM Plex Mono',monospace;
+  --r:8px;--r2:12px;
+  --sh1:0 1px 3px rgba(13,35,64,.07),0 1px 2px rgba(13,35,64,.05);
+  --sh2:0 4px 14px rgba(13,35,64,.12);
+  --sh3:0 12px 32px rgba(13,35,64,.2);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13.5px;line-height:1.6;min-height:100vh}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--surface2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* HEADER */
+header{background:var(--navy);min-height:56px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 10px rgba(13,35,64,.35);flex-wrap:wrap;gap:6px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:32px;height:32px;background:var(--orange-md);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff}
+.logo-text{font-size:14.5px;font-weight:700;color:#fff}
+.logo-sub{font-size:10px;color:rgba(255,255,255,.45);letter-spacing:.08em;text-transform:uppercase}
+.upload-corner{display:flex;align-items:center;gap:8px}
+#fileNameBadge{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.45);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#fileInput{display:none}
+.btn-upload{display:flex;align-items:center;gap:5px;padding:6px 14px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:500;transition:all .15s;white-space:nowrap}
+.btn-upload:hover{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4)}
+
+/* BANNER */
+#emptyBanner{background:linear-gradient(90deg,var(--navy2),var(--navy3));color:#fff;padding:11px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12.5px}
+#emptyBanner span{opacity:.8}
+.btn-load{padding:6px 16px;background:var(--orange-md);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap}
+.btn-load:hover{background:var(--orange)}
+
+/* TABS */
+.tab-bar{background:var(--surface);border-bottom:2px solid var(--border);padding:0 24px;display:flex;box-shadow:var(--sh1);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none}.tab-bar::-webkit-scrollbar{display:none}
+.tab-btn{padding:12px 20px;background:none;border:none;cursor:pointer;color:var(--muted);font-family:var(--font);font-size:12.5px;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;display:flex;align-items:center;gap:6px}
+.tab-btn.active{color:var(--navy);border-bottom-color:var(--navy);font-weight:700}
+.tab-btn:hover:not(.active){color:var(--text2)}
+.tc-badge{background:var(--border);color:var(--muted);font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;font-family:var(--mono)}
+.tab-btn.active .tc-badge{background:var(--navy);color:#fff}
+
+/* MAIN */
+.main{padding:20px 24px;min-width:0;overflow-x:hidden}
+
+/* SECTION */
+.sec-hdr{margin-bottom:16px}
+.sec-h{font-size:18px;font-weight:700;color:var(--navy);letter-spacing:-.02em}
+.sec-sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ===================== MULTI-SELECT FILTER ===================== */
+.fc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:16px 18px;margin-bottom:18px;box-shadow:var(--sh1)}
+.fc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.fc-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--navy2)}
+.fc-clr{font-size:11px;color:var(--blue);cursor:pointer;font-weight:500}
+.fc-clr:hover{text-decoration:underline}
+.fg{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(190px,100%),1fr));gap:10px}
+.fgrp{display:flex;flex-direction:column;gap:4px;position:relative}
+.flbl{font-size:10.5px;font-weight:600;color:var(--text2)}
+
+/* dropdown trigger */
+.ms-trigger{
+  background:var(--surface2);border:1px solid var(--border2);border-radius:6px;
+  padding:6px 30px 6px 10px;font-family:var(--font);font-size:12px;color:var(--text);
+  cursor:pointer;user-select:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  position:relative;min-height:32px;display:flex;align-items:center;
+  transition:border .15s,box-shadow .15s;
+}
+.ms-trigger:hover,.ms-trigger.open{border-color:var(--navy3);box-shadow:0 0 0 3px rgba(30,74,122,.09)}
+.ms-trigger::after{content:'▾';position:absolute;right:9px;font-size:10px;color:var(--muted);transition:transform .15s}
+.ms-trigger.open::after{transform:rotate(180deg)}
+.ms-trigger .pill-wrap{display:flex;flex-wrap:wrap;gap:3px;max-width:100%}
+.ms-pill{display:inline-flex;align-items:center;gap:3px;background:var(--navy);color:#fff;border-radius:3px;padding:1px 5px;font-size:10px;font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-pill .rm{cursor:pointer;opacity:.7;font-size:9px;flex-shrink:0}
+.ms-pill .rm:hover{opacity:1}
+
+/* dropdown panel */
+.ms-panel{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;
+  background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);
+  box-shadow:var(--sh2);z-index:160;max-height:220px;overflow:hidden;
+  display:none;flex-direction:column;
+  min-width:200px;
+}
+.ms-panel.open{display:flex}
+.ms-search{padding:8px 10px;border-bottom:1px solid var(--border)}
+.ms-search input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-family:var(--font);font-size:11.5px;color:var(--text);outline:none}
+.ms-search input:focus{border-color:var(--navy3)}
+.ms-opts{overflow-y:auto;flex:1;padding:4px 0}
+.ms-opt{display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;font-size:12px;transition:background .1s;border-radius:4px;margin:0 4px}
+.ms-opt:hover{background:var(--blue-lt)}
+.ms-opt input[type=checkbox]{width:14px;height:14px;accent-color:var(--navy);cursor:pointer;flex-shrink:0}
+.ms-opt span{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-opt.all-opt{border-bottom:1px solid var(--border);margin-bottom:2px;padding-bottom:7px;font-weight:600;color:var(--navy2)}
+.ms-empty{padding:12px 10px;text-align:center;color:var(--muted);font-size:12px}
+
+.fa{display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.btn{padding:7px 16px;border-radius:6px;font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn-navy{background:var(--navy);color:#fff}.btn-navy:hover{background:var(--navy2)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}.btn-ghost:hover{background:var(--surface2)}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#1045a0}
+.btn-sm{padding:4px 10px;font-size:11px}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(165px,calc(50% - 7px)),1fr));gap:13px;margin-bottom:18px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:17px 18px;box-shadow:var(--sh1);border-top:3px solid var(--kc,var(--navy))}
+.kpi-ico{font-size:18px;margin-bottom:6px}
+.kpi-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:3px}
+.kpi-val{font-size:26px;font-weight:800;color:var(--kc,var(--navy));line-height:1;margin-bottom:3px;letter-spacing:-.02em}
+.kpi-sub{font-size:11px;color:var(--muted)}
+
+/* CHARTS */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.cc{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:18px 20px 14px;box-shadow:0 2px 12px rgba(13,35,64,.08);
+  position:relative;overflow:hidden;transition:box-shadow .2s,transform .18s;
+}
+.cc:hover{box-shadow:0 6px 24px rgba(13,35,64,.13);transform:translateY(-2px)}
+.cc::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--cc-bar,linear-gradient(90deg,#e040fb,#ff6d00));border-radius:14px 14px 0 0;
+}
+.cc.wide{grid-column:span 2}
+.ct{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--navy);margin-bottom:4px;display:flex;align-items:center;justify-content:space-between}
+.cw{position:relative;height:215px}
+.chart-scroll-wrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.chart-scroll-wrap::-webkit-scrollbar{height:5px}
+.chart-scroll-wrap::-webkit-scrollbar-track{background:var(--surface2);border-radius:3px}
+.chart-scroll-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.chart-scroll-wrap canvas{display:block}
+.cw canvas{max-height:215px}
+/* chart tooltip override */
+.ch-tooltip{
+  background:rgba(13,35,64,.95)!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  border-radius:10px!important;
+  padding:10px 14px!important;
+  font-family:var(--font)!important;
+  color:#fff!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.3)!important;
+  pointer-events:none;
+}
+
+/* TABLE */
+.tc2{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;margin-bottom:18px;box-shadow:var(--sh1)}
+.th2{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.tt{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--navy)}
+.tct{font-family:var(--mono);font-size:10.5px;color:var(--muted);background:var(--border);padding:2px 8px;border-radius:10px}
+.ts{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{background:var(--navy);color:rgba(255,255,255,.85);padding:9px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;cursor:pointer;user-select:none;transition:background .1s}
+thead th:hover{background:var(--navy2)}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#eef3fb}
+tbody tr:nth-child(even){background:var(--surface2)}
+tbody tr:nth-child(even):hover{background:#eef3fb}
+tbody td{padding:8px 12px;color:var(--text);vertical-align:top;word-break:break-word;white-space:normal;line-height:1.45}
+th.asc::after{content:' ↑';opacity:.7}
+th.desc::after{content:' ↓';opacity:.7}
+
+/* BADGES */
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.bg-green{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd)}
+.bg-red{background:var(--red-lt);color:var(--red);border:1px solid var(--red-bd)}
+.bg-orange{background:var(--orange-lt);color:var(--orange);border:1px solid var(--orange-bd)}
+.bg-blue{background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-bd)}
+.bg-prev{background:#fff8e1;color:#9a6200;border:1px solid #fde68a}
+.bg-corr{background:var(--red-lt);color:var(--red);border:1px solid var(--red-bd)}
+
+/* PAGINATION */
+.pag{display:flex;align-items:center;gap:4px;padding:11px 18px;justify-content:flex-end;border-top:1px solid var(--border);background:var(--surface2)}
+.pb{min-width:27px;height:27px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);border-radius:5px;cursor:pointer;font-size:12px;transition:all .12s;display:flex;align-items:center;justify-content:center;padding:0 5px;font-family:var(--mono)}
+.pb.active{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:700}
+.pb:hover:not(.active){background:var(--surface2);border-color:var(--navy3);color:var(--navy)}
+.pi{font-size:10.5px;color:var(--muted);font-family:var(--mono);margin-left:5px}
+
+/* FICHA */
+.fo{position:fixed;inset:0;background:rgba(13,35,64,.55);z-index:300;display:none;overflow-y:auto;backdrop-filter:blur(3px)}
+.fo.open{display:flex;align-items:flex-start;justify-content:center;padding:26px 14px}
+.fm{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);width:100%;max-width:960px;box-shadow:var(--sh3);overflow:hidden}
+.fm-top{background:var(--navy);padding:20px 26px;display:flex;align-items:flex-start;justify-content:space-between}
+.fm-ref{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.fm-title{font-size:17px;font-weight:700;color:#fff;line-height:1.3}
+.fm-close{width:30px;height:30px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);color:rgba(255,255,255,.75);border-radius:5px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;margin-left:14px}
+.fm-close:hover{background:rgba(255,255,255,.2);color:#fff}
+.fm-body{padding:22px 26px;max-height:68vh;overflow-y:auto}
+.fm-sec{margin-bottom:20px}
+.fm-sec-t{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--navy);border-bottom:2px solid var(--orange-md);padding-bottom:6px;margin-bottom:11px}
+.fm-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.fm-grid.g3{grid-template-columns:1fr 1fr 1fr}
+.ff{display:flex;flex-direction:column;gap:2px}
+.ff-lbl{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.ff-val{font-size:12px;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:6px 9px;min-height:28px;word-break:break-word;white-space:pre-wrap;line-height:1.5}
+.ff.full{grid-column:span 2}.ff.full3{grid-column:span 3}
+.fm-foot{border-top:1px solid var(--border);padding:13px 26px;display:flex;gap:8px;justify-content:flex-end;background:var(--surface2)}
+.t-ficha thead th{background:var(--navy2);font-size:9.5px;padding:6px 9px}
+.t-ficha tbody td{padding:7px 9px;vertical-align:top}
+.t-ficha{table-layout:auto}
+
+
+/* PASSWORD MODAL */
+#pwOverlay{position:fixed;inset:0;background:rgba(13,35,64,.92);z-index:600;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+#pwBox{background:var(--surface);border-radius:var(--r2);padding:36px 40px;width:calc(100% - 32px);max-width:400px;box-shadow:var(--sh3);text-align:center;max-height:90vh;overflow-y:auto}
+#pwBox .pw-ico{font-size:36px;margin-bottom:14px}
+#pwBox h3{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:6px}
+#pwBox p{font-size:12.5px;color:var(--muted);margin-bottom:20px}
+#pwBox .pw-row{position:relative;margin-bottom:14px}
+#pwBox input[type=password]{width:100%;padding:10px 40px 10px 14px;font-size:14px;border:2px solid var(--border2);border-radius:8px;font-family:var(--font);color:var(--text);background:var(--surface2);outline:none;transition:border .15s;letter-spacing:.1em}
+#pwBox input[type=password]:focus{border-color:var(--navy3);background:#fff}
+#pwBox input[type=password].error{border-color:var(--red);animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+#pwToggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:0}
+#pwToggle:hover{color:var(--navy)}
+#pwError{font-size:11.5px;color:var(--red);margin-bottom:12px;min-height:18px;font-weight:500}
+#pwBox .btn-pw{width:100%;padding:11px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);transition:background .15s}
+#pwBox .btn-pw:hover{background:var(--navy2)}
+#pwBox .pw-hint{font-size:10.5px;color:var(--border2);margin-top:12px}
+/* Last loaded badge in header */
+#lastLoadedBadge{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.5);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:5px}
+#lastLoadedBadge .dot{width:6px;height:6px;border-radius:50%;background:#4ade80;flex-shrink:0}
+
+/* LOADING */
+#lo{position:fixed;inset:0;background:rgba(240,243,248,.92);z-index:400;display:none;align-items:center;justify-content:center;flex-direction:column;gap:13px}
+#lo.show{display:flex}
+.sp{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .75s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lt{font-size:13px;color:var(--text2);font-weight:500}
+
+/* DRAG */
+body.drag-over::before{content:'📂 Suelta el archivo aquí';position:fixed;inset:0;background:rgba(13,35,64,.82);color:#fff;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:500;pointer-events:none}
+body.drag-over::before{display:flex}
+
+/* NO DATA */
+.nd{text-align:center;padding:44px 18px;color:var(--muted)}
+.nd-ico{font-size:36px;margin-bottom:10px}
+.alert{padding:10px 14px;border-radius:var(--r);font-size:12px;margin-top:4px}
+.al-orange{background:var(--orange-lt);border:1px solid var(--orange-bd);color:var(--orange)}
+
+
+/* =====================================================================
+   RESPONSIVE — mobile-first breakpoints
+   xs  <480px   (phone portrait)
+   sm  <640px   (phone landscape / small phone)
+   md  <900px   (tablet portrait / small laptop)
+   lg  900px+   (desktop, already the default above)
+   ===================================================================== */
+
+/* ── Tablet (≤900px) ─────────────────────────────────────────── */
+@media(max-width:900px){
+  /* layout */
+  header{height:auto;min-height:52px;padding:8px 14px;flex-wrap:wrap;gap:6px}
+  .logo-sub{display:none}
+  .upload-corner{gap:6px}
+  #lastLoadedBadge{max-width:140px;font-size:9px}
+  .btn-upload{padding:5px 10px;font-size:11px}
+
+  .main{padding:14px}
+  .tab-bar{padding:0 14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tab-btn{padding:10px 14px;font-size:12px;white-space:nowrap}
+
+  /* filters */
+  .fg{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+
+  /* kpi */
+  .kpi-grid{grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px}
+  .kpi-val{font-size:22px}
+
+  /* charts */
+  .charts-grid{grid-template-columns:1fr;gap:12px}
+  .cc.wide{grid-column:span 1}
+  .cw{height:185px}
+  .cw canvas{max-height:185px}
+
+  /* ficha modal */
+  .fo.open{padding:12px 8px}
+  .fm-top{padding:16px 18px}
+  .fm-title{font-size:15px}
+  .fm-body{padding:16px 18px;max-height:75vh}
+  .fm-foot{padding:10px 18px}
+  .fm-grid.g3,.fm-grid{grid-template-columns:1fr 1fr}
+  .ff.full3{grid-column:span 2}
+
+  /* password box */
+  #pwBox{padding:28px 24px;max-width:360px}
+
+  /* table */
+  tbody td{padding:7px 10px;font-size:12px}
+  thead th{padding:8px 10px;font-size:9.5px}
+}
+
+/* ── Small phone (≤640px) ─────────────────────────────────────── */
+@media(max-width:640px){
+  .charts-grid{grid-template-columns:1fr!important}
+  /* header — stack logo + upload */
+  header{padding:8px 12px}
+  .logo-text{font-size:13px}
+  #lastLoadedBadge{display:none!important}  /* hide in very small header */
+  .btn-upload{font-size:11px;padding:5px 9px}
+
+  /* banner */
+  #emptyBanner{flex-direction:column;align-items:flex-start;gap:8px;padding:10px 14px;font-size:12px}
+  .btn-load{width:100%;text-align:center;padding:8px}
+
+  .main{padding:10px}
+  .tab-bar{padding:0 10px}
+  .tab-btn{padding:9px 12px;font-size:11.5px;gap:4px}
+  .tc-badge{font-size:9px;padding:1px 5px}
+
+  /* section header */
+  .sec-h{font-size:15px}
+  .sec-sub{font-size:11px}
+
+  /* filters */
+  .fc{padding:12px 14px}
+  .fg{grid-template-columns:1fr 1fr;gap:8px}
+  .flbl{font-size:10px}
+
+  /* kpi — 2 per row */
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi-card{padding:13px 12px}
+  .kpi-ico{font-size:15px;margin-bottom:4px}
+  .kpi-lbl{font-size:9px;letter-spacing:.05em}
+  .kpi-val{font-size:19px}
+  .kpi-sub{font-size:10px}
+
+  /* charts — single column, shorter */
+  .cw{height:168px}
+  .cw canvas{max-height:168px}
+  .ct{font-size:10.5px;margin-bottom:10px}
+
+  /* ficha modal — fullscreen feel */
+  .fo.open{padding:0;align-items:flex-end}
+  .fm{border-radius:var(--r2) var(--r2) 0 0;max-width:100%;max-height:95vh;display:flex;flex-direction:column}
+  .fm-top{padding:14px 16px}
+  .fm-ref{font-size:9px}
+  .fm-title{font-size:14px}
+  .fm-body{padding:14px 16px;max-height:none;flex:1;overflow-y:auto}
+  .fm-foot{padding:10px 16px;flex-wrap:wrap;gap:6px}
+  .fm-foot .btn{flex:1;justify-content:center;padding:9px 8px;font-size:12px}
+  .fm-grid.g3,.fm-grid{grid-template-columns:1fr}
+  .ff.full,.ff.full3{grid-column:span 1}
+  .ff-val{font-size:11.5px}
+
+  /* password box */
+  #pwBox{padding:24px 18px;margin:0 12px;max-width:100%}
+  #pwBox h3{font-size:14px}
+  #pwBox p{font-size:11.5px}
+  #pwBox input[type=password]{font-size:13px;padding:9px 36px 9px 12px}
+  #pwBox .btn-pw{font-size:13px;padding:10px}
+
+  /* table — min columns for mobile */
+  .ts{-webkit-overflow-scrolling:touch}
+  table{font-size:11.5px}
+  thead th{padding:7px 8px;font-size:9px}
+  tbody td{padding:6px 8px;word-break:break-word;white-space:normal}
+
+  /* pagination */
+  .pag{padding:9px 12px;gap:3px;flex-wrap:wrap}
+  .pb{min-width:26px;height:26px;font-size:11px}
+  .pi{font-size:10px}
+}
+
+/* ── Extra small phone (≤400px) ───────────────────────────────── */
+@media(max-width:400px){
+  .fg{grid-template-columns:1fr}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .kpi-val{font-size:17px}
+  .tab-btn{padding:8px 10px;font-size:11px}
+  .logo-mark{width:28px;height:28px;font-size:11px}
+  .logo-text{font-size:12px}
+  .main{padding:8px}
+  #emptyBanner{font-size:11px}
+}
+
+/* ── Touch / pointer improvements ──────────────────────────────── */
+@media(hover:none) and (pointer:coarse){
+  .cc:hover{transform:none;box-shadow:0 2px 12px rgba(13,35,64,.08)}
+  /* larger tap targets for touch */
+  .ms-opt{padding:10px 12px;min-height:40px}
+  .tab-btn{min-height:44px}
+  .pb{min-width:36px;height:36px}
+  .btn{padding:10px 16px}
+  .btn-sm{padding:8px 12px}
+  .btn-upload{padding:8px 14px}
+  thead th{padding:10px 12px}
+  tbody td{padding:10px 12px}
+  select,input[type=text]{padding:9px 10px;font-size:14px}
+  #pwBox input[type=password]{padding:12px 40px 12px 14px;font-size:15px}
+}
+
+
+/* ═══════════════════════════════════════════
+   GANTT PLANNER
+   ═══════════════════════════════════════════ */
+#ganttWrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.gantt-scroll-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;box-shadow:var(--sh1)}
+.gantt-scroll-wrap::-webkit-scrollbar{height:7px}
+.gantt-scroll-wrap::-webkit-scrollbar-track{background:var(--surface2);border-radius:4px}
+.gantt-scroll-wrap::-webkit-scrollbar-thumb{background:var(--navy3);border-radius:4px}
+.gantt-container{font-family:var(--font);min-width:max-content}
+.gantt-header{display:flex;background:var(--navy);border-radius:10px 10px 0 0;overflow:hidden;position:sticky;top:0;z-index:10;min-height:52px}
+.gantt-ev-col{flex:0 0 280px;padding:10px 14px;font-size:10px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;border-right:1px solid rgba(255,255,255,.1)}
+.gantt-timeline{flex:1;display:flex}
+.gantt-day-hdr{flex:1;padding:5px 2px 4px;text-align:center;font-size:9px;color:rgba(255,255,255,.65);font-weight:600;border-right:1px solid rgba(255,255,255,.07);min-width:28px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gantt-day-hdr.today-hdr{background:rgba(239,68,68,.35);color:#fca5a5}
+.gantt-day-hdr.weekend{color:rgba(255,200,100,.6)}
+.gantt-body{border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;overflow:hidden}
+.gantt-ev-group{}
+.gantt-ev-label{
+  display:flex;align-items:center;gap:8px;padding:8px 14px;
+  background:linear-gradient(90deg,var(--surface2),var(--surface));
+  border-bottom:1px solid var(--border);
+  cursor:pointer;
+}
+.gantt-ev-label:hover{background:var(--blue-lt)}
+.gantt-ev-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.gantt-ev-name{font-size:11px;font-weight:700;color:var(--navy);white-space:normal;word-break:break-word;line-height:1.4}
+.gantt-row{display:flex;border-bottom:1px solid rgba(221,227,237,.5);min-height:52px;align-items:stretch}
+.gantt-row:last-child{border-bottom:none}
+.gantt-row:hover{background:rgba(20,82,168,.03)}
+.gantt-task-info{flex:0 0 280px;padding:6px 14px;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:flex-start;min-height:50px}
+.gantt-task-num{font-size:9px;font-family:var(--mono);color:var(--muted)}
+.gantt-task-desc{font-size:10.5px;color:var(--text2);line-height:1.5;word-break:break-word;white-space:normal;padding-top:2px}
+.gantt-bars{flex:1;position:relative;min-height:52px;display:flex;align-items:center}
+.gantt-grid-line{position:absolute;top:0;bottom:0;width:1px;background:rgba(221,227,237,.4)}
+.gantt-grid-line.weekend{background:rgba(255,200,100,.15)}
+.gantt-grid-line.today{background:rgba(255,29,68,.5);width:2px}
+.gantt-bar{
+  position:absolute;height:20px;border-radius:5px;
+  display:flex;align-items:center;padding:0 6px;
+  font-size:9px;font-weight:700;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  box-shadow:0 2px 6px rgba(0,0,0,.18);
+  transition:height .15s,filter .15s;cursor:default;
+  z-index:2;
+}
+.gantt-bar:hover{height:24px;filter:brightness(1.12);z-index:5}
+.gantt-bar.cerrada{opacity:1}
+.gantt-bar.en-proceso{opacity:.92;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.12) 0,rgba(255,255,255,.12) 4px,transparent 4px,transparent 10px)}
+.gantt-legend{display:flex;gap:18px;padding:12px 16px;background:var(--surface2);border-top:1px solid var(--border);flex-wrap:wrap;border-radius:0 0 10px 10px}
+.gantt-legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)}
+.gantt-legend-box{width:22px;height:10px;border-radius:3px}
+.gantt-empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.gantt-summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.gantt-kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;flex:1;min-width:120px;border-top:3px solid var(--kc,var(--navy))}
+.gantt-kpi-lbl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.gantt-kpi-val{font-size:22px;font-weight:800;color:var(--kc,var(--navy));line-height:1.1;margin-top:2px}
+.gantt-kpi-sub{font-size:10px;color:var(--muted)}
+
+
+/* ─── Gantt chip selector ─────────────────────────────────── */
+.gantt-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:8px;
+  font-size:11.5px;font-weight:600;cursor:pointer;
+  border:2px solid transparent;
+  transition:all .15s;user-select:none;
+  position:relative;
+}
+.gantt-chip .chip-num{
+  font-family:var(--mono);font-weight:700;font-size:12px;
+}
+.gantt-chip .chip-lbl{
+  font-size:10.5px;font-weight:500;max-width:160px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.gantt-chip .chip-cnt{
+  font-size:9px;font-family:var(--mono);
+  background:rgba(0,0,0,.15);border-radius:4px;
+  padding:1px 5px;
+}
+.gantt-chip.unsel{
+  background:var(--surface2);
+  border-color:var(--border2);
+  color:var(--text2);
+}
+.gantt-chip.unsel:hover{
+  background:var(--blue-lt);border-color:var(--blue);color:var(--navy);
+  transform:translateY(-1px);box-shadow:0 3px 8px rgba(20,82,168,.15);
+}
+.gantt-chip.sel{
+  color:#fff;
+  border-color:rgba(255,255,255,.25);
+  transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(0,0,0,.2);
+}
+.gantt-chip.sel::after{
+  content:'✓';position:absolute;top:-6px;right:-6px;
+  width:16px;height:16px;background:#22c55e;
+  border-radius:50%;font-size:9px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid #fff;
+}
+.gantt-chip.hidden{display:none}
+
+/* Color palette for chips — 12 vivid colors */
+.gc0{background:linear-gradient(135deg,#7c3aed,#4f46e5)}.gc0.unsel{background:var(--surface2)}
+.gc1{background:linear-gradient(135deg,#0891b2,#0e7490)}.gc1.unsel{background:var(--surface2)}
+.gc2{background:linear-gradient(135deg,#dc2626,#b91c1c)}.gc2.unsel{background:var(--surface2)}
+.gc3{background:linear-gradient(135deg,#059669,#047857)}.gc3.unsel{background:var(--surface2)}
+.gc4{background:linear-gradient(135deg,#d97706,#b45309)}.gc4.unsel{background:var(--surface2)}
+.gc5{background:linear-gradient(135deg,#db2777,#be185d)}.gc5.unsel{background:var(--surface2)}
+.gc6{background:linear-gradient(135deg,#2563eb,#1d4ed8)}.gc6.unsel{background:var(--surface2)}
+.gc7{background:linear-gradient(135deg,#16a34a,#15803d)}.gc7.unsel{background:var(--surface2)}
+.gc8{background:linear-gradient(135deg,#9333ea,#7e22ce)}.gc8.unsel{background:var(--surface2)}
+.gc9{background:linear-gradient(135deg,#ea580c,#c2410c)}.gc9.unsel{background:var(--surface2)}
+.gc10{background:linear-gradient(135deg,#0284c7,#0369a1)}.gc10.unsel{background:var(--surface2)}
+.gc11{background:linear-gradient(135deg,#be123c,#9f1239)}.gc11.unsel{background:var(--surface2)}
+
+
+/* ─── Gantt event badge grid (single selection) ──────────── */
+/* Grid container: set in HTML via style */
+.ev-badge{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:12px;cursor:pointer;
+  border:2px solid var(--border2);
+  transition:all .18s;user-select:none;
+  padding:14px 8px 12px;
+  position:relative;overflow:hidden;
+  background:#fff;
+  min-height:90px;
+  box-shadow:var(--sh1);
+}
+.ev-badge:hover{
+  transform:translateY(-2px);
+  box-shadow:0 4px 14px rgba(0,0,0,.12);
+  border-color:var(--border2);
+}
+.ev-badge.ev-unsel{ background:#fff; border-color:var(--border2); }
+.ev-badge.ev-sel{
+  background:#d1fae5;
+  border-color:#22c55e;
+  border-width:2px;
+  box-shadow:0 4px 14px rgba(34,197,94,.2);
+  transform:translateY(-2px);
+}
+.ev-badge.ev-sel::after{
+  content:'✓';
+  position:absolute;top:5px;right:8px;
+  font-size:12px;font-weight:900;color:#16a34a;
+}
+.ev-num{
+  font-family:var(--mono);font-size:30px;font-weight:900;
+  line-height:1;margin-bottom:5px;letter-spacing:-.02em;
+  color:var(--navy);
+}
+.ev-badge.ev-sel .ev-num{color:#15803d}
+.ev-label{
+  font-size:10px;font-weight:600;color:var(--muted);
+  letter-spacing:.03em;
+}
+.ev-badge.ev-sel .ev-label{color:#166534}
+.ev-prog{
+  position:absolute;bottom:0;left:0;right:0;height:4px;
+  background:var(--border);
+}
+.ev-prog-fill{height:100%;transition:width .3s}
+.ev-badge.hidden{display:none!important}
+
+/* ─── Responsive planner layout ──────────────────────────── */
+@media(max-width:900px){
+  #plannerLayout{grid-template-columns:1fr!important}
+  #ganttSidePanel{position:static!important}
+  .gantt-task-info{flex:0 0 200px!important}
+  .gantt-ev-col{flex:0 0 200px!important}
+}
+@media(max-width:640px){
+  .gantt-task-info{flex:0 0 150px!important;padding:4px 8px!important}
+  .gantt-ev-col{flex:0 0 150px!important;padding:8px 10px!important}
+  .gantt-task-desc{font-size:9.5px!important}
+  #ganttChipGrid{grid-template-columns:repeat(2,1fr)!important}
+}
+
+
+</style>
+</head>
+<body>
+
+<div id="lo"><div class="sp"></div><div class="lt">Procesando archivo Excel…</div></div>
+
+<!-- FICHA MODAL -->
+<div class="fo" id="fo" onclick="closeFichaOut(event)">
+  <div class="fm" id="fm">
+    <div class="fm-top">
+      <div><div class="fm-ref" id="fichaRef"></div><div class="fm-title" id="fichaTitle"></div></div>
+      <button class="fm-close" onclick="closeFichaBtn()">✕</button>
+    </div>
+    <div class="fm-body" id="fichaBody"></div>
+    <div class="fm-foot">
+      <button class="btn btn-ghost" onclick="closeFichaBtn()">Cerrar</button>
+      <button class="btn btn-blue" onclick="exportPDF()">⬇ Descargar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- PASSWORD MODAL (shown when user clicks Cargar Excel) -->
+<div id="pwOverlay" style="display:none">
+  <div id="pwBox">
+    <div class="pw-ico">🔐</div>
+    <h3>Acceso restringido</h3>
+    <p>Ingresa la contraseña para cargar o actualizar los datos del dashboard</p>
+    <div class="pw-row">
+      <input type="password" id="pwInput" placeholder="Contraseña" onkeydown="if(event.key==='Enter')checkPw()">
+      <button id="pwToggle" onclick="togglePwVis()" title="Mostrar/ocultar">👁</button>
+    </div>
+    <div id="pwError"></div>
+    <button class="btn-pw" onclick="checkPw()">Ingresar</button>
+    <div class="pw-hint">Solo los administradores pueden actualizar los datos</div>
+  </div>
+</div>
+
+<!-- APP -->
+<header>
+  <div class="logo">
+    <div class="logo-mark">GR</div>
+    <div><div class="logo-text">Gestión de Riesgos</div><div class="logo-sub">Dashboard Operativo</div></div>
+  </div>
+  <div class="upload-corner">
+    <span id="lastLoadedBadge" style="display:none"><span class="dot"></span><span id="fileNameBadge"></span></span>
+    <button class="btn-upload" onclick="openPwModal()">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L3.5 6H6v6h4V6h2.5L8 1z"/><rect x="2" y="13" width="12" height="1.5" rx=".5"/></svg>
+      Cargar Excel
+    </button>
+    <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls">
+  </div>
+</header>
+
+<div id="emptyBanner">
+  <span>📊 Carga tu archivo Excel para actualizar el dashboard — o arrastra el archivo directamente sobre la pantalla</span>
+  <button class="btn-load" onclick="openPwModal()">📂 Seleccionar archivo</button>
+</div>
+
+<div id="debugPanel" style="display:none;background:#fdecea;border:1px solid #f2b0ab;color:#7a1a14;padding:10px 24px;font-size:12px;line-height:1.7"></div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('e')">📋 Eventos de Riesgo <span class="tc-badge" id="tcE">0</span></button>
+  <button class="tab-btn"        onclick="switchTab('t')">✅ Eventos-Tareas <span class="tc-badge" id="tcT">0</span></button>
+  <button class="tab-btn"        onclick="switchTab('g')">📅 Planner Gantt</button>
+</div>
+
+<!-- ===== PANEL EVENTOS ===== -->
+<div class="main" id="pE">
+  <div class="sec-hdr">
+    <div class="sec-h">Eventos de Riesgo Operativo</div>
+    <div class="sec-sub">Registro, análisis y seguimiento de eventos de riesgo</div>
+  </div>
+
+  <div class="fc">
+    <div class="fc-top">
+      <div class="fc-lbl">⚙ Filtros — selección múltiple</div>
+      <span class="fc-clr" onclick="clearFiltersE()">✕ Limpiar todos</span>
+    </div>
+    <div class="fg" id="fgE"></div>
+    <div class="fa">
+      <button class="btn btn-navy" onclick="applyFiltersE()">Aplicar filtros</button>
+      <button class="btn btn-ghost" onclick="clearFiltersE()">Limpiar</button>
+    </div>
+  </div>
+
+  <div class="kpi-grid" id="kpiE">
+    <div class="kpi-card" style="--kc:var(--navy)"><div class="kpi-ico">📋</div><div class="kpi-lbl">Total Eventos</div><div class="kpi-val">—</div><div class="kpi-sub">Carga un archivo</div></div>
+    <div class="kpi-card" style="--kc:var(--red)"><div class="kpi-ico">💸</div><div class="kpi-lbl">Cuantía Total</div><div class="kpi-val" style="font-size:18px">—</div><div class="kpi-sub">Millones COP</div></div>
+    <div class="kpi-card" style="--kc:var(--green)"><div class="kpi-ico">🔄</div><div class="kpi-lbl">Total Recuperada</div><div class="kpi-val" style="font-size:18px">—</div><div class="kpi-sub">Millones COP</div></div>
+    <div class="kpi-card" style="--kc:var(--blue)"><div class="kpi-ico">🛡️</div><div class="kpi-lbl">Recuperada Seguros</div><div class="kpi-val" style="font-size:18px">—</div><div class="kpi-sub">Millones COP</div></div>
+    <div class="kpi-card" style="--kc:var(--orange)"><div class="kpi-ico">📉</div><div class="kpi-lbl">Pérdida Total</div><div class="kpi-val" style="font-size:18px">—</div><div class="kpi-sub">Millones COP</div></div>
+  </div>
+
+  <div class="charts-grid">
+
+    <!-- Chart 1: Clase Nivel 1 — wide, scroll horizontal -->
+    <div class="cc" style="--cc-bar:linear-gradient(90deg,#e040fb,#7c4dff)">
+      <div class="ct">Eventos por Clase Nivel 1</div>
+      <div class="ct-sub">Distribución creativa por categoría de riesgo</div>
+      <div class="chart-scroll-wrap" id="cN1Wrap">
+        <canvas id="cN1"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 2: Tareas por Evento — wide, scroll horizontal -->
+    <div class="cc" style="--cc-bar:linear-gradient(90deg,#00e5ff,#7c4dff)">
+      <div class="ct">Tareas por Evento</div>
+      <div class="ct-sub">Total · Terminadas · Pendientes — todos los eventos</div>
+      <div class="chart-scroll-wrap" id="cEsWrap">
+        <canvas id="cEs"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 3: Evolución Anual — wide, misma altura -->
+    <div class="cc" style="--cc-bar:linear-gradient(90deg,#e040fb,#00e5ff)">
+      <div class="ct">Evolución Anual de Eventos</div>
+      <div class="ct-sub">Tendencia histórica · 🟢 sube · 🔴 baja</div>
+      <div class="chart-scroll-wrap" id="cAnWrap">
+        <canvas id="cAn"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 4: Pérdida por Evento — wide, scroll horizontal -->
+    <div class="cc" style="--cc-bar:linear-gradient(90deg,#ff6d00,#ffea00)">
+      <div class="ct">Pérdida Total por Evento — M COP</div>
+      <div class="ct-sub">Valor de pérdida en millones COP · ordenado Ev.1 → último · toca para detalle</div>
+      <div class="chart-scroll-wrap" id="cCuWrap">
+        <canvas id="cCu"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tc2">
+    <div class="th2"><div class="tt">Registro de Eventos</div><span class="tct" id="tableCount">0 eventos</span></div>
+    <div class="ts">
+      <table id="evTable">
+        <thead><tr>
+          <th onclick="sortTable('REFERENCIA')">Ref</th>
+          <th onclick="sortTable('Año')">Año</th>
+          <th onclick="sortTable('Mes')">Mes</th>
+          <th onclick="sortTable('CLASE EVENTO NIVEL 1')">Clase Nivel 1</th>
+          <th onclick="sortTable('CUANTIA')" title="Expresado en millones de pesos COP">Cuantía (M COP)</th>
+          <th onclick="sortTable('CATEGORÍA 4 (Interna)')">Categoría 4</th>
+          <th>Acción</th>
+        </tr></thead>
+        <tbody id="evBody"><tr><td colspan="7"><div class="nd"><div class="nd-ico">📂</div><div>Carga un archivo Excel para visualizar los eventos</div></div></td></tr></tbody>
+      </table>
+    </div>
+    <div class="pag" id="pagE"></div>
+  </div>
+</div>
+
+<!-- ===== PANEL TAREAS ===== -->
+<div class="main" id="pT" style="display:none">
+  <div class="sec-hdr">
+    <div class="sec-h">Tablero de Seguimiento — Tareas</div>
+    <div class="sec-sub">Gestión de acciones preventivas y correctivas por evento de riesgo</div>
+  </div>
+
+  <div class="fc">
+    <div class="fc-top">
+      <div class="fc-lbl">⚙ Filtros de Tareas — selección múltiple</div>
+      <span class="fc-clr" onclick="clearFiltersT()">✕ Limpiar</span>
+    </div>
+    <div class="fg" id="fgT"></div>
+    <div class="fa">
+      <button class="btn btn-navy" onclick="applyFiltersT()">Aplicar</button>
+      <button class="btn btn-ghost" onclick="clearFiltersT()">Limpiar</button>
+    </div>
+  </div>
+
+  <div class="kpi-grid" id="kpiT"></div>
+
+  <div class="tc2">
+    <div class="th2"><div class="tt">Registro de Tareas</div><span class="tct" id="tareasCount">0 tareas</span></div>
+    <div class="ts">
+      <table id="taTable">
+        <thead><tr>
+          <th>N° Evento</th><th>N° Tarea</th><th>Descripción de la Tarea</th>
+          <th>Tipo Acción</th><th>Responsable</th><th>Nombre</th>
+          <th>F. Inicio</th><th>F. Finalización</th><th>Estado</th>
+        </tr></thead>
+        <tbody id="taBody"><tr><td colspan="9"><div class="nd"><div class="nd-ico">📂</div><div>Carga un archivo Excel para ver las tareas</div></div></td></tr></tbody>
+      </table>
+    </div>
+    <div class="pag" id="pagT"></div>
+  </div>
+</div>
+
+<!-- ===== PANEL PLANNER GANTT ===== -->
+<div class="main" id="pG" style="display:none">
+  <div class="sec-hdr">
+    <div class="sec-h">Planner — Diagrama de Gantt por Evento</div>
+    <div class="sec-sub">Selecciona un evento en el panel derecho para visualizar sus actividades</div>
+  </div>
+
+  <!-- Layout: Gantt izquierda | Selector derecha -->
+  <div id="plannerLayout" style="display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start">
+
+    <!-- IZQUIERDA: Gantt -->
+    <div id="ganttWrap" style="min-width:0">
+      <div class="nd"><div class="nd-ico">📅</div>
+        <div style="font-size:14px;font-weight:600;color:var(--navy);margin-bottom:6px">Selecciona un evento</div>
+        <div style="font-size:12px;color:var(--muted)">Elige un evento en el panel de la derecha</div>
+      </div>
+    </div>
+
+    <!-- DERECHA: Selector de evento (uno a la vez) -->
+    <div id="ganttSidePanel" style="position:sticky;top:72px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--sh1);overflow:hidden">
+        <!-- Header panel -->
+        <div style="background:var(--navy);padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.08em">📋 Eventos</div>
+          <span style="font-size:10px;color:rgba(255,255,255,.5)">Un evento a la vez</span>
+        </div>
+        <!-- Search -->
+        <div style="padding:10px 12px;border-bottom:1px solid var(--border)">
+          <input type="text" id="ganttSearch" placeholder="🔍 Buscar evento…"
+            oninput="filterGanttChips(this.value)"
+            style="width:100%;padding:7px 10px;font-size:12px;border:1px solid var(--border2);border-radius:6px;background:var(--surface2);outline:none;font-family:var(--font)">
+        </div>
+        <!-- Selected indicator -->
+        <div id="ganttSelCount" style="padding:8px 14px;font-size:11px;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">
+          Ningún evento seleccionado
+        </div>
+        <!-- Chip list — scrollable -->
+        <div id="ganttChipGrid" style="padding:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px;max-height:calc(100vh - 280px);overflow-y:auto"></div>
+        <!-- Clear -->
+        <div style="padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2)">
+          <button onclick="clearGanttFilter()" class="btn btn-ghost" style="width:100%;justify-content:center;font-size:12px">✕ Limpiar selección</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+let allE=[],allT=[],filtE=[],filtT=[],curEv=null;
+let sKey='REFERENCIA',sDir='asc';
+let epg=1,tpg=1,epsz=15,tpsz=15;
+let charts={},loaded=false;
+
+// Active filter selections: id -> Set of values
+const selE={};   // Eventos filters
+const selT={};   // Tareas filters
+
+// ════════════════════════════════════════════════════════════════
+// MULTI-SELECT COMPONENT
+// ════════════════════════════════════════════════════════════════
+/* 
+  MS = MultiSelect
+  Creates a custom dropdown with checkboxes inside .fg container.
+  id: unique filter id
+  label: display label
+  store: selE or selT (object storing Sets)
+*/
+function createMS(containerId, id, label, store){
+  store[id] = new Set();
+  const wrap = document.createElement('div');
+  wrap.className='fgrp';
+  wrap.innerHTML=`
+    <div class="flbl">${label}</div>
+    <div class="ms-trigger" id="tr_${id}" onclick="toggleMS('${id}')">
+      <span class="ms-placeholder" id="ph_${id}" style="color:var(--muted);font-size:12px">Todos</span>
+      <div class="pill-wrap" id="pills_${id}" style="display:none"></div>
+    </div>
+    <div class="ms-panel" id="pan_${id}">
+      <div class="ms-search"><input type="text" placeholder="Buscar…" oninput="searchMS('${id}',this.value)" onclick="event.stopPropagation()"></div>
+      <div class="ms-opts" id="opts_${id}"></div>
+    </div>`;
+  document.getElementById(containerId).appendChild(wrap);
+}
+
+function toggleMS(id){
+  const pan=document.getElementById('pan_'+id);
+  const tr=document.getElementById('tr_'+id);
+  const isOpen=pan.classList.contains('open');
+  // close all panels first
+  document.querySelectorAll('.ms-panel.open').forEach(p=>p.classList.remove('open'));
+  document.querySelectorAll('.ms-trigger.open').forEach(t=>t.classList.remove('open'));
+  if(!isOpen){pan.classList.add('open');tr.classList.add('open');}
+}
+
+// Close on click outside
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.fgrp')){
+    document.querySelectorAll('.ms-panel.open').forEach(p=>p.classList.remove('open'));
+    document.querySelectorAll('.ms-trigger.open').forEach(t=>t.classList.remove('open'));
+  }
+});
+
+function populateMS(id, values, store){
+  const uniq=[...new Set(values.map(v=>String(v||'').trim()).filter(v=>v))].sort((a,b)=>a.localeCompare(b,'es'));
+  const opts=document.getElementById('opts_'+id);
+  opts.innerHTML='';
+  // "Seleccionar todos" option
+  const all=document.createElement('div');
+  all.className='ms-opt all-opt';
+  all.innerHTML=`<input type="checkbox" id="all_${id}" onchange="toggleAllMS('${id}',this.checked)" ${store[id].size===0||store[id].size===uniq.length?'checked':''}> <span>Seleccionar todos</span>`;
+  opts.appendChild(all);
+
+  uniq.forEach(v=>{
+    const d=document.createElement('div');
+    d.className='ms-opt';
+    d.setAttribute('data-val',v);
+    const checked=store[id].size===0||store[id].has(v)?'checked':'';
+    d.innerHTML=`<input type="checkbox" value="${esc(v)}" ${checked} onchange="toggleOptMS('${id}','${esc(v).replace(/'/g,"\\'")}',this.checked)"> <span title="${esc(v)}">${esc(v)}</span>`;
+    opts.appendChild(d);
+  });
+}
+
+function searchMS(id, q){
+  const opts=document.getElementById('opts_'+id);
+  const lower=q.toLowerCase();
+  let any=false;
+  opts.querySelectorAll('.ms-opt:not(.all-opt)').forEach(d=>{
+    const v=d.getAttribute('data-val')||'';
+    const show=v.toLowerCase().includes(lower);
+    d.style.display=show?'':'none';
+    if(show)any=true;
+  });
+  // empty state
+  let emp=opts.querySelector('.ms-empty');
+  if(!any){if(!emp){emp=document.createElement('div');emp.className='ms-empty';emp.textContent='Sin resultados';opts.appendChild(emp);}}
+  else if(emp){emp.remove();}
+}
+
+function toggleOptMS(id,val,checked){
+  const store=getStore(id);
+  if(!store[id])store[id]=new Set();
+  if(checked)store[id].add(val);else store[id].delete(val);
+  syncAllChk(id);
+  updatePills(id);
+}
+
+function toggleAllMS(id,checked){
+  const store=getStore(id);
+  const opts=document.getElementById('opts_'+id);
+  opts.querySelectorAll('.ms-opt:not(.all-opt) input').forEach(cb=>{
+    cb.checked=checked;
+    if(checked)store[id].add(cb.value);else store[id].delete(cb.value);
+  });
+  updatePills(id);
+}
+
+function syncAllChk(id){
+  const opts=document.getElementById('opts_'+id);
+  const all=opts.querySelectorAll('.ms-opt:not(.all-opt) input');
+  const chk=opts.querySelectorAll('.ms-opt:not(.all-opt) input:checked');
+  const allCb=document.getElementById('all_'+id);
+  if(allCb)allCb.checked=(chk.length===all.length);
+}
+
+function updatePills(id){
+  const store=getStore(id);
+  const ph=document.getElementById('ph_'+id);
+  const pills=document.getElementById('pills_'+id);
+  const set=store[id];
+  const totalOpts=document.getElementById('opts_'+id).querySelectorAll('.ms-opt:not(.all-opt)').length;
+  if(!set||set.size===0||set.size===totalOpts){
+    ph.style.display='';ph.textContent='Todos';pills.style.display='none';pills.innerHTML='';return;
+  }
+  ph.style.display='none';pills.style.display='flex';
+  pills.innerHTML='';
+  [...set].slice(0,3).forEach(v=>{
+    const p=document.createElement('span');p.className='ms-pill';
+    p.innerHTML=`${esc(v.slice(0,18))} <span class="rm" onclick="event.stopPropagation();removePill('${id}','${esc(v).replace(/'/g,"\\'")}')">✕</span>`;
+    pills.appendChild(p);
+  });
+  if(set.size>3){const more=document.createElement('span');more.className='ms-pill';more.style.background='var(--navy3)';more.textContent=`+${set.size-3}`;pills.appendChild(more);}
+}
+
+function removePill(id,val){
+  const store=getStore(id);
+  store[id].delete(val);
+  const cb=document.querySelector(`#opts_${id} input[value="${val}"]`);
+  if(cb)cb.checked=false;
+  syncAllChk(id);updatePills(id);
+}
+
+function getStore(id){
+  if(id.startsWith('t_'))return selT;
+  if(id.startsWith('g_'))return window._ganttStore||(window._ganttStore={});
+  return selE;
+}
+
+function getActiveVals(id){
+  const store=getStore(id);
+  const set=store[id];
+  const opts=document.getElementById('opts_'+id);
+  if(!opts)return null; // no filter built yet
+  const total=opts.querySelectorAll('.ms-opt:not(.all-opt)').length;
+  if(!set||set.size===0||set.size===total)return null; // all selected = no filter
+  return set;
+}
+
+function clearMS(id){
+  const store=getStore(id);
+  if(store[id])store[id].clear();
+  const opts=document.getElementById('opts_'+id);
+  if(opts){
+    opts.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true);
+    const allCb=document.getElementById('all_'+id);
+    if(allCb)allCb.checked=true;
+  }
+  updatePills(id);
+}
+
+// ════════════════════════════════════════════════════════════════
+// PASSWORD GATE
+// ════════════════════════════════════════════════════════════════
+let pendingDropFile = null; // file from drag-drop, waiting for password
+
+function openPwModal(){
+  document.getElementById('pwOverlay').style.display='flex';
+  const inp=document.getElementById('pwInput');
+  inp.value='';
+  inp.type='password';
+  document.getElementById('pwToggle').textContent='👁';
+  document.getElementById('pwError').textContent='';
+  inp.classList.remove('error');
+  // Focus after transition
+  setTimeout(()=>inp.focus(),120);
+}
+
+function closePwModal(){
+  document.getElementById('pwOverlay').style.display='none';
+  pendingDropFile=null;
+}
+
+function togglePwVis(){
+  const inp=document.getElementById('pwInput');
+  const btn=document.getElementById('pwToggle');
+  if(inp.type==='password'){inp.type='text';btn.textContent='🙈';}
+  else{inp.type='password';btn.textContent='👁';}
+}
+
+/* Single, clean checkPw — handles both button click and drag-drop flow */
+function checkPw(){
+  const val=document.getElementById('pwInput').value;
+  const errEl=document.getElementById('pwError');
+  const inp=document.getElementById('pwInput');
+
+  if(val==='SINRIESGOS1*'){
+    // ✅ Correct password
+    errEl.textContent='';
+    inp.classList.remove('error');
+    closePwModal();
+
+    if(pendingDropFile){
+      // Load the drag-dropped file directly
+      const f=pendingDropFile;
+      pendingDropFile=null;
+      loadFile(f);
+    } else {
+      // Trigger native file picker — must happen synchronously inside
+      // a user-gesture handler (button onclick → checkPw), so this works.
+      document.getElementById('fileInput').value=''; // reset so same file can be re-selected
+      const fi=document.getElementById('fileInput');
+      fi.value=''; // allow same file to be re-selected
+      fi.click();
+    }
+  } else {
+    // ❌ Wrong password
+    inp.classList.add('error');
+    errEl.textContent='Contraseña incorrecta. Intenta de nuevo.';
+    inp.value='';
+    inp.focus();
+    setTimeout(()=>inp.classList.remove('error'),400);
+  }
+}
+
+// Close modal when clicking the dark overlay (not the box itself)
+document.getElementById('pwOverlay').addEventListener('click', function(e){
+  if(e.target===this) closePwModal();
+});
+
+// ════════════════════════════════════════════════════════════════
+// PERSISTENCE — save/load data via window.storage
+// ════════════════════════════════════════════════════════════════
+const STORAGE_KEY='gr_dashboard_data';
+const STORAGE_META='gr_dashboard_meta';
+
+async function saveToStorage(fileName, evData, taData){
+  try{
+    const meta={fileName, savedAt:new Date().toISOString(), evCount:evData.length, taCount:taData.length};
+    await window.storage.set(STORAGE_META, JSON.stringify(meta));
+    const payload=JSON.stringify({allE:evData, allT:taData});
+    await window.storage.set(STORAGE_KEY, payload);
+    console.log('[Storage] Saved OK:', meta);
+  }catch(err){
+    console.warn('[Storage] Save failed:', err);
+  }
+}
+
+async function loadFromStorage(){
+  try{
+    const metaRes=await window.storage.get(STORAGE_META);
+    const dataRes=await window.storage.get(STORAGE_KEY);
+    if(!metaRes||!dataRes)return null;
+    const meta=JSON.parse(metaRes.value);
+    const data=JSON.parse(dataRes.value);
+    return{meta, allE:data.allE||[], allT:data.allT||[]};
+  }catch(err){
+    console.warn('[Storage] Load failed:', err);
+    return null;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// FILE LOADING
+// ════════════════════════════════════════════════════════════════
+
+// When user selects a file via the native picker
+document.getElementById('fileInput').addEventListener('change', e=>{
+  if(e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+// Drag & drop — show password modal first, then load if correct
+['dragover','dragenter'].forEach(ev=>
+  document.body.addEventListener(ev, e=>{ e.preventDefault(); document.body.classList.add('drag-over'); })
+);
+['dragleave','drop'].forEach(ev=>
+  document.body.addEventListener(ev, ()=>document.body.classList.remove('drag-over'))
+);
+document.body.addEventListener('drop', e=>{
+  e.preventDefault();
+  document.body.classList.remove('drag-over');
+  if(e.dataTransfer.files[0]){
+    pendingDropFile=e.dataTransfer.files[0];
+    openPwModal();
+  }
+});
+
+function loadFile(f){
+  showLoad(true);
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      parseWB(XLSX.read(ev.target.result,{type:'binary',cellDates:true}), f.name);
+    }catch(err){
+      showLoad(false);
+      alert('Error al leer el archivo:\n'+err.message);
+    }
+  };
+  r.onerror=()=>{ showLoad(false); alert('No se pudo leer el archivo.'); };
+  r.readAsBinaryString(f);
+}
+
+// ════════════════════════════════════════════════════════════════
+// PARSE WORKBOOK
+// ════════════════════════════════════════════════════════════════
+function parseWB(wb, fileName){
+  const shs=wb.SheetNames;
+  const evSh=shs.find(s=>s.toLowerCase().includes('eventos de riesgos')||s.toLowerCase()==='eventos de riesgo');
+  const taSh=shs.find(s=>s.toLowerCase().includes('eventos-tareas')||s.toLowerCase().includes('eventos tareas'));
+  if(!evSh){showLoad(false);alert('⚠️ Hoja "Eventos de riesgos" no encontrada.\nHojas disponibles: '+shs.join(', '));return;}
+
+  // ---- Eventos ----
+  const rawE=XLSX.utils.sheet_to_json(wb.Sheets[evSh],{defval:'',raw:true});
+  allE=rawE
+    .filter(r=>{
+      // accept any row that has REFERENCIA or similar
+      const ref=r['REFERENCIA']||r['Referencia']||r['referencia']||'';
+      return ref!==''&&ref!==undefined&&ref!==null;
+    })
+    .map(r=>{
+      const c={};
+      for(const k in r){
+        let v=r[k];
+        if(v instanceof Date)v=fdate(v);
+        // store under original key AND a normalised uppercase key (no accents)
+        c[k]=v;
+        const kn=k.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        if(kn!==k)c[kn]=v; // also store normalised copy
+      }
+      return c;
+    });
+  // Debug: log first row keys and money values to console
+  if(allE.length>0){
+    console.log('[Dashboard] Evento row 0 keys:', Object.keys(allE[0]));
+    console.log('[Dashboard] CUANTIA raw:', allE[0]['CUANTIA'], '| CUANTÍA:', allE[0]['CUANT\u00cdA']);
+    const moneyKeys=['CUANTIA','CUANTIA TOTAL RECUPERADA','CUANTIA RECUPERADA SEGUROS','PERDIDA TOTAL'];
+    moneyKeys.forEach(k=>console.log(' ',k,'=',allE[0][k],'(type:',typeof allE[0][k],')'));
+  }
+
+  // ---- Tareas ----
+  allT=[];
+  if(taSh){
+    // Try structured JSON parse first (works if header row is top)
+    const rawJson=XLSX.utils.sheet_to_json(wb.Sheets[taSh],{defval:''});
+    const rawArr=XLSX.utils.sheet_to_json(wb.Sheets[taSh],{defval:'',header:1});
+
+    // Find the actual header row by looking for known column names
+    let hi=-1;
+    for(let i=0;i<rawArr.length;i++){
+      const row=rawArr[i];
+      if(row.some(c=>String(c).toLowerCase().includes('descripción de la tarea')||String(c).toLowerCase().includes('tipo de acción')||String(c).toLowerCase().includes('tipo de accion'))){
+        hi=i;break;
+      }
+    }
+
+    if(hi>=0){
+      const hd=rawArr[hi];
+      // normalize header names
+      const hdNorm=hd.map(h=>String(h||'').replace(/\n/g,' ').trim());
+      
+      for(let i=hi+1;i<rawArr.length;i++){
+        const row=rawArr[i];
+        if(row.every(c=>c===''||c==null||c===undefined))continue;
+        const o={};
+        hdNorm.forEach((h,j)=>{if(h)o[h]=row[j]!==undefined?row[j]:'';});
+        
+        // Find N° Evento key (handles newlines in original header)
+        const neKey=Object.keys(o).find(k=>k.replace(/\s+/g,' ').trim().toLowerCase().includes('n°') && k.toLowerCase().includes('evento'));
+        const ntKey=Object.keys(o).find(k=>k.replace(/\s+/g,' ').trim().toLowerCase().includes('n°') && k.toLowerCase().includes('tarea'));
+        const descKey=Object.keys(o).find(k=>k.toLowerCase().includes('descripci') && k.toLowerCase().includes('tarea'));
+        const tipoKey=Object.keys(o).find(k=>k.toLowerCase().includes('tipo'));
+        const respKey=Object.keys(o).find(k=>k.toLowerCase().includes('responsable'));
+        const nombreKey=Object.keys(o).find(k=>k.toLowerCase()==='nombre');
+        const fIKey=Object.keys(o).find(k=>k.toLowerCase().includes('fecha de inicio')||k.toLowerCase().includes('inicio'));
+        const fFKey=Object.keys(o).find(k=>k.toLowerCase().includes('finaliz'));
+        
+        const ne=neKey?o[neKey]:'';
+        if(ne===''&&ne!==0)continue;
+        const neInt=parseInt(ne);
+        if(isNaN(neInt)||neInt<=0)continue;
+        
+        o['_NE']=neInt;
+        o['_NT']=parseInt(ntKey?o[ntKey]:0)||0;
+        o['_TIPO']=String(tipoKey?o[tipoKey]:'').toUpperCase().trim();
+        o['_DESC']=String(descKey?o[descKey]:'').trim();
+        o['_RESP']=String(respKey?o[respKey]:'').trim();
+        o['_NOMBRE']=String(nombreKey?o[nombreKey]:'').trim();
+        
+        // dates
+        let fi=fIKey?o[fIKey]:'',ff=fFKey?o[fFKey]:'';
+        if(fi instanceof Date)fi=fdate(fi);
+        else if(typeof fi==='number'&&fi>10000)fi=fdate(new Date((fi-25569)*86400000));
+        if(ff instanceof Date)ff=fdate(ff);
+        else if(typeof ff==='number'&&ff>10000)ff=fdate(new Date((ff-25569)*86400000));
+        o['_FI']=String(fi||'').trim();
+        o['_FF']=String(ff||'').trim();
+        o['_EST']=o['_FF']?'Cerrada':'En Proceso';
+        
+        allT.push(o);
+      }
+    }
+  }
+
+  showLoad(false);loaded=true;
+  document.getElementById('emptyBanner').style.display='none';
+  document.getElementById('tcE').textContent=allE.length;
+  document.getElementById('tcT').textContent=allT.length;
+  filtE=[...allE];filtT=[...allT];
+
+  // ── Show diagnostic info ──────────────────────────────────────
+  if(allE.length>0){
+    const r0=allE[0];
+    const moneyK=['CUANTIA','CUANTIA TOTAL RECUPERADA','CUANTIA RECUPERADA SEGUROS','PERDIDA TOTAL'];
+    const found=[], missing=[];
+    moneyK.forEach(k=>{
+      const v=gMoney(r0,k);
+      const raw=r0[k];
+      if(raw!==undefined&&raw!==''&&raw!==null)found.push(k+'='+raw);
+      else missing.push(k);
+    });
+    const dbg=document.getElementById('debugPanel');
+    if(dbg){
+      if(missing.length>0){
+        dbg.style.display='block';
+        dbg.innerHTML='<b>⚠️ Columnas financieras no encontradas en el Excel:</b> '+missing.join(', ')
+          +'<br><b>Columnas detectadas:</b> '+Object.keys(r0).slice(0,25).join(' · ')
+          +'<br><small>Los nombres de las columnas en el Excel deben coincidir exactamente.</small>';
+      } else {
+        dbg.style.display='none';
+      }
+    }
+    console.log('[Debug] Money fields found:', found);
+    console.log('[Debug] Missing:', missing);
+    console.log('[Debug] All keys:', Object.keys(r0));
+  }
+
+  buildFiltersE();
+  buildFiltersT();
+  renderAll();
+
+  // ── Persist data ──────────────────────────────────────────────
+  saveToStorage(fileName||'archivo.xlsx', allE, allT).then(()=>{
+    updateLastLoadedBadge(fileName||'archivo.xlsx', new Date());
+  });
+}
+
+function fdate(d){if(!d||isNaN(d))return'';return d.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'});}
+
+// ════════════════════════════════════════════════════════════════
+// BUILD FILTERS
+// ════════════════════════════════════════════════════════════════
+const EVFILTERS=[
+  {id:'f_a', label:'Año',          key:'Año'},
+  {id:'f_m', label:'Mes',          key:'Mes'},
+  {id:'f_n1',label:'Clase Nivel 1',key:'CLASE EVENTO NIVEL 1'},
+  {id:'f_n2',label:'Clase Nivel 2',key:'CLASE EVENTO NIVEL 2'},
+  {id:'f_sv',label:'Servicio / Producto',key:'SERVICIO / PRODUCTO'},
+  {id:'f_ca',label:'Canal Atención Cliente',key:'CANAL ATENCION CLIENTE'},
+  {id:'f_fn',label:'Nombre Funcionario',key:'NOMBRE FUNCIONARIO REPORTE EVENTO'},
+  {id:'f_es',label:'Estado Evento',key:'ESTADO EVENTO'},
+  {id:'f_c4',label:'Categoría 4 (Interna)',key:'CATEGORÍA 4 (Interna)'},
+];
+
+const TAFILTERS=[
+  {id:'t_ne',  label:'N° Evento',    key:'_NE'},
+  {id:'t_ano', label:'Año',          key:'_ANO'},
+  {id:'t_mes', label:'Mes',          key:'_MES'},
+  {id:'t_tipo',label:'Tipo de Acción',key:'_TIPO'},
+  {id:'t_est', label:'Estado Tarea', key:'_EST'},
+];
+
+function buildFiltersE(){
+  const cont=document.getElementById('fgE');
+  cont.innerHTML='';
+  // Clear existing MS state
+  EVFILTERS.forEach(f=>{
+    delete selE[f.id];
+    createMS('fgE',f.id,f.label,selE);
+    const vals=allE.map(r=>String(r[f.key]||'').trim());
+    populateMS(f.id,vals,selE);
+  });
+}
+
+function buildFiltersT(){
+  const cont=document.getElementById('fgT');
+  cont.innerHTML='';
+  // Enrich tareas with _ANO and _MES extracted from _FI date string
+  allT.forEach(t=>{
+    if(!t['_ANO']){
+      // _FI format: dd/mm/yyyy
+      const parts=(t['_FI']||'').split('/');
+      t['_ANO']=parts.length===3?parts[2]:'';
+      const mesNum=parts.length===3?parseInt(parts[1]):0;
+      const meses=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      t['_MES']=mesNum>=1&&mesNum<=12?meses[mesNum]:'';
+    }
+  });
+  TAFILTERS.forEach(f=>{
+    delete selT[f.id];
+    createMS('fgT',f.id,f.label,selT);
+    let vals;
+    if(f.key==='_NE')vals=allT.map(t=>String(t['_NE']));
+    else vals=allT.map(t=>String(t[f.key]||'').trim());
+    populateMS(f.id,vals,selT);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// APPLY / CLEAR FILTERS
+// ════════════════════════════════════════════════════════════════
+function applyFiltersE(){
+  filtE=allE.filter(r=>{
+    for(const f of EVFILTERS){
+      const active=getActiveVals(f.id);
+      if(!active)continue;
+      const val=String(r[f.key]||'').trim();
+      if(!active.has(val))return false;
+    }
+    return true;
+  });
+  epg=1;
+  document.getElementById('tcE').textContent=filtE.length;
+  renderKPIs();renderEvTable();requestAnimationFrame(function(){renderCharts();});
+}
+
+function clearFiltersE(){
+  EVFILTERS.forEach(f=>clearMS(f.id));
+  filtE=[...allE];epg=1;
+  document.getElementById('tcE').textContent=filtE.length;
+  renderKPIs();renderEvTable();requestAnimationFrame(function(){renderCharts();});
+}
+
+function applyFiltersT(){
+  filtT=allT.filter(t=>{
+    for(const f of TAFILTERS){
+      const active=getActiveVals(f.id);
+      if(!active)continue;
+      const val=f.key==='_NE'?String(t['_NE']):String(t[f.key]||'').trim();
+      if(!active.has(val))return false;
+    }
+    return true;
+  });
+  tpg=1;
+  document.getElementById('tcT').textContent=filtT.length;
+  renderTKPIs();renderTaTable();renderGantt();
+}
+
+function clearFiltersT(){
+  TAFILTERS.forEach(f=>clearMS(f.id));
+  filtT=[...allT];tpg=1;
+  document.getElementById('tcT').textContent=filtT.length;
+  renderTKPIs();renderTaTable();renderGantt();
+}
+
+// ════════════════════════════════════════════════════════════════
+// RENDER ALL
+// ════════════════════════════════════════════════════════════════
+function renderAll(){
+  renderKPIs();renderEvTable();requestAnimationFrame(function(){renderCharts();});
+  renderTKPIs();renderTaTable();
+  buildGanttFilter();
+}
+
+// ════════════════════════════════════════════════════════════════
+// KPIs — EVENTOS
+// ════════════════════════════════════════════════════════════════
+function renderKPIs(){
+  const tot=filtE.length;
+  const ab=filtE.filter(r=>!['cerrado','aprobado'].includes((r['ESTADO EVENTO']||'').toLowerCase())).length;
+  const ap=filtE.filter(r=>(r['ESTADO EVENTO']||'').toLowerCase()==='aprobado').length;
+  const ce=filtE.filter(r=>(r['ESTADO EVENTO']||'').toLowerCase()==='cerrado').length;
+
+  // ── Financial aggregates (raw pesos) ──────────────────────────
+  const cu  = filtE.reduce((s,r)=>s+parsePesos(gMoney(r,'CUANTIA')),0);
+  const rec = filtE.reduce((s,r)=>s+parsePesos(gMoney(r,'CUANTIA TOTAL RECUPERADA')),0);
+  const seg = filtE.reduce((s,r)=>s+parsePesos(gMoney(r,'CUANTIA RECUPERADA SEGUROS')),0);
+  const per = filtE.reduce((s,r)=>s+parsePesos(gMoney(r,'PERDIDA TOTAL')),0);
+
+  document.getElementById('kpiE').innerHTML=`
+    <div class="kpi-card" style="--kc:var(--navy)">
+      <div class="kpi-ico">📋</div>
+      <div class="kpi-lbl">Total Eventos</div>
+      <div class="kpi-val">${tot}</div>
+      <div class="kpi-sub">${ab} abierto(s) · ${ap} aprobado(s) · ${ce} cerrado(s)</div>
+    </div>
+    <div class="kpi-card" style="--kc:var(--red)">
+      <div class="kpi-ico">💸</div>
+      <div class="kpi-lbl">Cuantía Total</div>
+      <div class="kpi-val" style="font-size:20px">${fmM(cu)}</div>
+      <div class="kpi-sub">Millones de pesos COP</div>
+    </div>
+    <div class="kpi-card" style="--kc:var(--green)">
+      <div class="kpi-ico">🔄</div>
+      <div class="kpi-lbl">Cuantía Total Recuperada</div>
+      <div class="kpi-val" style="font-size:20px">${fmM(rec)}</div>
+      <div class="kpi-sub">Millones de pesos COP</div>
+    </div>
+    <div class="kpi-card" style="--kc:var(--blue)">
+      <div class="kpi-ico">🛡️</div>
+      <div class="kpi-lbl">Recuperada por Seguros</div>
+      <div class="kpi-val" style="font-size:20px">${fmM(seg)}</div>
+      <div class="kpi-sub">Millones de pesos COP</div>
+    </div>
+    <div class="kpi-card" style="--kc:var(--orange)">
+      <div class="kpi-ico">📉</div>
+      <div class="kpi-lbl">Pérdida Total</div>
+      <div class="kpi-val" style="font-size:20px">${fmM(per)}</div>
+      <div class="kpi-sub">Millones de pesos COP</div>
+    </div>`;
+}
+
+/* Fault-tolerant money field reader.
+   Tries the exact key, then normalized (no accents, uppercase), 
+   then common column name variants. */
+function gMoney(row, key){
+  if(row[key]!==undefined&&row[key]!=='')return row[key];
+  // normalized key (strip accents)
+  const kn=key.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if(row[kn]!==undefined&&row[kn]!=='')return row[kn];
+  // try scanning all keys case-insensitively
+  const keyLow=key.toLowerCase().replace(/[\u0300-\u036f]/g,'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  for(const k of Object.keys(row)){
+    const kl=k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if(kl===keyLow)return row[k];
+  }
+  return 0;
+}
+
+/* Parse a cell value (number or string) into raw pesos.
+   Handles plain JS numbers, Colombian dot-thousands format,
+   Colombian comma-decimal format, and US decimal format. */
+function parsePesos(v){
+  if(v===null||v===undefined||v==='')return 0;
+  if(typeof v==='number')return isFinite(v)?v:0;
+  let s=String(v).trim().replace(/\$/g,'').replace(/[\s\u00a0]/g,'');
+  if(s==='')return 0;
+  const dotCount=(s.match(/\./g)||[]).length;
+  const hasComma=s.includes(',');
+  if(hasComma){
+    // comma = decimal sep, dots = thousands sep
+    s=s.replace(/\./g,'').replace(',','.');
+  } else if(dotCount>1){
+    // multiple dots = thousands separators only
+    s=s.replace(/\./g,'');
+  }
+  // single dot = standard decimal — leave as-is
+  const n=parseFloat(s);
+  return isFinite(n)?n:0;
+}
+
+/* Format pesos as millions with 2 decimals, e.g.  $1.234,56 M */
+function fmM(pesos){
+  if(pesos===0)return'$0';
+  const m=pesos/1e6;
+  // format with Colombian locale: dot thousands, comma decimal
+  return'$'+m.toLocaleString('es-CO',{minimumFractionDigits:2,maximumFractionDigits:2})+' M';
+}
+
+/* Legacy short formatter (charts tooltip etc.) */
+function fm(v){return fmM(parsePesos(v));}
+
+// ════════════════════════════════════════════════════════════════
+// KPIs — TAREAS
+// ════════════════════════════════════════════════════════════════
+function renderTKPIs(){
+  const tot=filtT.length;
+  const pv=filtT.filter(t=>t['_TIPO']==='PREVENTIVA').length;
+  const co=filtT.filter(t=>t['_TIPO']==='CORRECTIVA').length;
+  const ce=filtT.filter(t=>t['_EST']==='Cerrada').length;
+  document.getElementById('kpiT').innerHTML=`
+    <div class="kpi-card" style="--kc:var(--navy)"><div class="kpi-ico">📌</div><div class="kpi-lbl">Total Tareas</div><div class="kpi-val">${tot}</div><div class="kpi-sub">registradas</div></div>
+    <div class="kpi-card" style="--kc:var(--red)"><div class="kpi-ico">🔧</div><div class="kpi-lbl">Correctivas</div><div class="kpi-val">${co}</div><div class="kpi-sub">${tot?Math.round(co/tot*100):0}% del total</div></div>
+    <div class="kpi-card" style="--kc:var(--orange)"><div class="kpi-ico">🛡️</div><div class="kpi-lbl">Preventivas</div><div class="kpi-val">${pv}</div><div class="kpi-sub">${tot?Math.round(pv/tot*100):0}% del total</div></div>
+    <div class="kpi-card" style="--kc:var(--green)"><div class="kpi-ico">✅</div><div class="kpi-lbl">Cerradas</div><div class="kpi-val">${ce}</div><div class="kpi-sub">${tot-ce} en proceso</div></div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// CHARTS — vibrant, solid colors (no runtime gradients)
+// ════════════════════════════════════════════════════════════════
+
+// Solid impact palette: magenta, cyan, yellow-orange, green, violet, red, lime, pink
+const PAL = ['#e040fb','#00e5ff','#ff6d00','#00e676','#7c4dff','#ff1744','#ffea00','#c6ff00','#ff4081','#18ffff','#ff9100','#69f0ae'];
+
+// Per-bar colors for horizontal chart
+const BAR_COLS = ['#e040fb','#00e5ff','#ffea00','#ff6d00','#00e676','#7c4dff','#ff1744','#c6ff00','#ff4081','#18ffff'];
+
+// Status semantic colors
+const EST_COLS = {'aprobado':'#00e676','cerrado':'#18ffff','abierto':'#ff1744','en proceso':'#ffea00','pendiente':'#ff9100','revision':'#7c4dff'};
+
+const GC = 'rgba(13,35,64,.06)', TC = '#8898b0';
+
+const TOOLTIP_CFG = {
+  backgroundColor:'rgba(10,20,45,0.95)',
+  titleColor:'#fff',
+  bodyColor:'rgba(255,255,255,.82)',
+  borderColor:'rgba(255,255,255,.15)',
+  borderWidth:1,
+  padding:12,
+  cornerRadius:10,
+  titleFont:{family:'Inter,sans-serif',size:12,weight:'700'},
+  bodyFont:{family:'Inter,sans-serif',size:11},
+  displayColors:true,
+  boxWidth:10,boxHeight:10,boxPadding:4,
+  usePointStyle:true
+};
+
+const BO = {responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}};
+
+function dk(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+function cntBy(arr,k){
+  return arr.reduce(function(a,r){
+    var kk=String(r[k]||'Sin dato').trim().slice(0,55);
+    a[kk]=(a[kk]||0)+1; return a;
+  },{});
+}
+function shortLbl(s,n){n=n||28; return String(s).length>n?String(s).slice(0,n)+'\u2026':String(s);}
+
+function renderCharts(){
+
+  /* ── Chart 1: Clase Nivel 1 — lollipop/dot chart creativo ── */
+  dk('cN1');
+  var n1 = Object.entries(cntBy(filtE,'CLASE EVENTO NIVEL 1')).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+  var tot1 = n1.reduce(function(s,e){return s+e[1];},0);
+  var N1_PAL = ['#e040fb','#00e5ff','#ffea00','#ff6d00','#00e676','#7c4dff','#ff1744','#c6ff00','#ff4081','#18ffff'];
+  var N1_DAR = ['#9c27b0','#0097a7','#f9a825','#bf360c','#1b5e20','#311b92','#880e4f','#558b2f','#c51162','#006064'];
+
+  var cN1Wrap   = document.getElementById('cN1Wrap');
+  var cN1Canvas = document.getElementById('cN1');
+  // Same height as cEs chart (260px wrap)
+  cN1Canvas.style.height = '230px';
+  cN1Canvas.style.width  = '100%';
+  cN1Canvas.height = 230;
+  if(cN1Wrap) cN1Wrap.style.height = '260px';
+
+  charts['cN1'] = new Chart(cN1Canvas.getContext('2d'),{
+    type:'bar',
+    data:{
+      labels: n1.map(function(e){return e[0];}),
+      datasets:[
+        // Background track bar (full width, very faint)
+        {
+          type:'bar',
+          data: n1.map(function(){return n1[0][1]*1.08;}),  // max value + 8%
+          backgroundColor: n1.map(function(_,i){return N1_PAL[i%N1_PAL.length]+'18';}),
+          borderRadius:20, borderSkipped:false, barThickness:20, order:3
+        },
+        // Main colored bar
+        {
+          type:'bar',
+          label:'Eventos',
+          data: n1.map(function(e){return e[1];}),
+          backgroundColor: n1.map(function(_,i){return N1_PAL[i%N1_PAL.length]+'cc';}),
+          borderRadius:20, borderSkipped:false, barThickness:20, order:2
+        },
+        // Dot at end of bar
+        {
+          type:'scatter',
+          data: n1.map(function(e,i){return {x:e[1], y:i};}),
+          backgroundColor: n1.map(function(_,i){return N1_PAL[i%N1_PAL.length];}),
+          borderColor:'#fff',
+          borderWidth:2,
+          pointRadius:9,
+          pointHoverRadius:12,
+          order:1
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      interaction:{mode:'index', axis:'y', intersect:false},
+      events:['mousemove','mouseout','click','touchstart','touchmove'],
+      layout:{padding:{right:52, left:4, top:6, bottom:6}},
+      plugins:{
+        legend:{display:false},
+        tooltip:Object.assign({},TOOLTIP_CFG,{
+          filter:function(item){return item.datasetIndex===1;},
+          callbacks:{
+            title:function(ctx){return n1[ctx[0].dataIndex]?n1[ctx[0].dataIndex][0]:'';},
+            label:function(ctx){
+              var v=ctx.raw, pct=tot1?((v/tot1)*100).toFixed(1):0;
+              return ' '+v+' evento'+(v!==1?'s':'')+' ('+pct+'% del total)';
+            },
+            afterLabel:function(ctx){
+              var lbl=n1[ctx.dataIndex]?n1[ctx.dataIndex][0]:'';
+              var sub=cntBy(filtE.filter(function(r){return r['CLASE EVENTO NIVEL 1']===lbl;}),'CLASE EVENTO NIVEL 2');
+              return Object.entries(sub).sort(function(a,b){return b[1]-a[1];}).slice(0,4)
+                .map(function(e){return '  • '+shortLbl(e[0],40)+': '+e[1];});
+            }
+          }
+        })
+      },
+      scales:{
+        x:{
+          grid:{color:GC},
+          ticks:{color:TC,font:{size:10}},
+          border:{display:false},
+          max: n1.length ? n1[0][1]*1.15 : 10
+        },
+        y:{
+          grid:{display:false},
+          ticks:{
+            color:'#1a2638', font:{size:10.5,weight:'600'},
+            autoSkip:false, crossAlign:'far',
+            callback:function(val,idx){
+              var lbl = n1[idx]?String(n1[idx][0]):'';
+              if(lbl.length<=32) return lbl;
+              var words=lbl.split(' '), lines=[], cur='';
+              words.forEach(function(w){
+                if((cur+' '+w).trim().length>32&&cur){lines.push(cur);cur=w;}
+                else{cur=(cur?cur+' ':'')+w;}
+              });
+              if(cur) lines.push(cur);
+              return lines;
+            }
+          },
+          border:{display:false}
+        }
+      },
+      animation:{duration:500,easing:'easeOutQuart'}
+    }
+  });
+
+  /* ── Chart 2: Tareas por Evento — grouped bar, respeta filtros de filtE ── */
+  dk('cEs');
+  // Eventos activos segun filtros aplicados — cruzar filtE con tareas
+  var filtERefNums = filtE.map(function(r){return parseInt(r['REFERENCIA']);});
+  var evWithTasks = [...new Set(allT.map(function(t){return t['_NE'];}))].filter(function(ne){
+    return filtERefNums.indexOf(ne) !== -1;
+  }).sort(function(a,b){return a-b;});
+  var tLabels  = evWithTasks.map(function(ne){return 'Ev.'+ne;});
+  var tTotal   = evWithTasks.map(function(ne){return allT.filter(function(t){return t['_NE']===ne;}).length;});
+  var tDone    = evWithTasks.map(function(ne){return allT.filter(function(t){return t['_NE']===ne&&t['_EST']==='Cerrada';}).length;});
+  var tPending = evWithTasks.map(function(ne,i){return tTotal[i]-tDone[i];});
+  // Set canvas width dynamically for scroll
+  var cEsWrap = document.getElementById('cEsWrap');
+  var cEsCanvas = document.getElementById('cEs');
+  var cEsW = Math.max(600, evWithTasks.length * 70);
+  cEsCanvas.style.width  = cEsW + 'px';
+  cEsCanvas.style.height = '230px';
+  cEsCanvas.width  = cEsW;
+  cEsCanvas.height = 230;
+  if(cEsWrap) cEsWrap.style.height = '260px';
+
+  charts['cEs'] = new Chart(cEsCanvas.getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:tLabels,
+      datasets:[
+        {label:'Total',data:tTotal,backgroundColor:'rgba(124,77,255,.25)',borderColor:'#7c4dff',borderWidth:2,borderRadius:4,borderSkipped:false,barThickness:16},
+        {label:'Terminadas',data:tDone,backgroundColor:'#22c55e',borderRadius:4,borderSkipped:false,barThickness:16},
+        {label:'Pendientes',data:tPending,backgroundColor:'#fb923c',borderRadius:4,borderSkipped:false,barThickness:16}
+      ]
+    },
+    options:{
+      responsive:false,
+      maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      events:['mousemove','mouseout','click','touchstart','touchmove'],
+      plugins:{
+        legend:{display:true,position:'top',
+          labels:{color:'#1a2638',font:{size:10},boxWidth:10,boxHeight:10,padding:12,usePointStyle:true}
+        },
+        tooltip:Object.assign({},TOOLTIP_CFG,{callbacks:{
+          title:function(ctx){
+            var ne=evWithTasks[ctx[0].dataIndex];
+            var ev=allE.find(function(r){return parseInt(r['REFERENCIA'])===ne;});
+            var cat=ev?String(ev['CATEGORÍA 4 (Interna)']||ev['CLASE EVENTO NIVEL 2']||''):'';
+            return 'Evento '+ne+(cat?' — '+cat.slice(0,50):'');
+          },
+          label:function(ctx){return ' '+ctx.dataset.label+': '+ctx.raw;}
+        }})
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#1a2638',font:{size:10,weight:'700'}},border:{display:false}},
+        y:{grid:{color:GC},ticks:{color:TC,font:{size:10},stepSize:1},border:{display:false}}
+      },
+      animation:{duration:500,easing:'easeOutQuart'}
+    }
+  });
+
+  /* ── Chart 3: Evolución anual — mixed bar+line, innovador ── */
+  dk('cAn');
+  var anRaw = Object.entries(cntBy(filtE,'Año')).sort(function(a,b){return String(a[0]).localeCompare(String(b[0]));});
+  var anMax = anRaw.reduce(function(m,e){return Math.max(m,e[1]);},0);
+  var cAnWrap = document.getElementById('cAnWrap');
+  var cAnCanvas = document.getElementById('cAn');
+  var cAnW = Math.max(500, anRaw.length * 90);
+  cAnCanvas.style.width  = cAnW + 'px';
+  cAnCanvas.style.height = '240px';
+  cAnCanvas.width  = cAnW;
+  cAnCanvas.height = 240;
+  if(cAnWrap) cAnWrap.style.height = '260px';
+  // % change labels for annotation
+  var anPct = anRaw.map(function(e,i){
+    if(i===0) return null;
+    var prev=anRaw[i-1][1];
+    return prev>0?Math.round((e[1]-prev)/prev*100):null;
+  });
+  charts['cAn'] = new Chart(cAnCanvas.getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:anRaw.map(function(e){return e[0];}),
+      datasets:[
+        // Background bars — light fill
+        {
+          type:'bar',
+          label:'Eventos',
+          data:anRaw.map(function(e){return e[1];}),
+          backgroundColor: anRaw.map(function(e,i){
+            var intensity = anMax>0?(e[1]/anMax):0;
+            var r=Math.round(224+intensity*(255-224));
+            var g=Math.round(64+intensity*(200-64));
+            var b=Math.round(251-intensity*100);
+            return 'rgba('+r+','+g+','+b+',.75)';
+          }),
+          borderColor: anRaw.map(function(_,i){return ['#e040fb','#c026d3','#7c4dff','#4f46e5','#ff6d00','#e040fb'][i%6];}),
+          borderWidth:2,
+          borderRadius:10,
+          borderSkipped:false,
+          barThickness:48,
+          order:2
+        },
+        // Overlay line — trend
+        {
+          type:'line',
+          label:'Tendencia',
+          data:anRaw.map(function(e){return e[1];}),
+          borderColor:'#fff',
+          borderWidth:2.5,
+          borderDash:[],
+          pointBackgroundColor: anRaw.map(function(e,i){return ['#e040fb','#00e5ff','#ffea00','#ff6d00','#00e676','#7c4dff'][i%6];}),
+          pointBorderColor:'#fff',
+          pointBorderWidth:2,
+          pointRadius:8,
+          pointHoverRadius:12,
+          fill:false,
+          tension:0.35,
+          order:1
+        }
+      ]
+    },
+    options:{
+      responsive:false, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      events:['mousemove','mouseout','click','touchstart','touchmove'],
+      plugins:{
+        legend:{display:false},
+        tooltip:Object.assign({},TOOLTIP_CFG,{callbacks:{
+          title:function(ctx){var y=anRaw[ctx[0].dataIndex];return y?'Año '+y[0]:'';},
+          label:function(ctx){
+            if(ctx.datasetIndex!==0) return null;
+            var v=ctx.raw;
+            var prev=ctx.dataIndex>0?anRaw[ctx.dataIndex-1][1]:null;
+            var diff=prev!==null?v-prev:null;
+            var lines=[' '+v+' evento'+(v!==1?'s':'')];
+            if(diff!==null) lines.push(' Var. vs año anterior: '+(diff>0?'+':'')+diff+' ('+(diff>0?'+':'')+anPct[ctx.dataIndex]+'%)');
+            return lines;
+          },
+          afterBody:function(ctx){
+            var y=anRaw[ctx[0].dataIndex];if(!y)return[];
+            var byN1=cntBy(filtE.filter(function(r){return String(r['Año'])===String(y[0]);}), 'CLASE EVENTO NIVEL 1');
+            var lines=['','Top clases:'];
+            Object.entries(byN1).sort(function(a,b){return b[1]-a[1];}).slice(0,3)
+              .forEach(function(e){lines.push('  \u2022 '+shortLbl(e[0],32)+': '+e[1]);});
+            return lines;
+          }
+        }})
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#1a2638',font:{size:11,weight:'700'}},border:{display:false}},
+        y:{grid:{color:GC},ticks:{color:TC,font:{size:10}},border:{display:false}}
+      },
+      animation:{duration:700, easing:'easeOutBack'}
+    }
+  });
+
+  /* ── Chart 4: Resumen por evento — tareas + pérdida (eje doble) ── */
+  dk('cCu');
+
+  // Top 10 events with tasks, sorted by total loss desc
+  // All events with pérdida > 0, ordered ascending by event number
+  var evAll = filtE
+    .filter(function(r){return parsePesos(gMoney(r,'PERDIDA TOTAL'))>0;})
+    .sort(function(a,b){return parseInt(a['REFERENCIA'])-parseInt(b['REFERENCIA']);})
+    .map(function(r){return parseInt(r['REFERENCIA']);});
+
+  var evLbls   = evAll.map(function(ne){return 'Ev.'+ne;});
+  var evPerdida= evAll.map(function(ne){
+    var ev=filtE.find(function(r){return parseInt(r['REFERENCIA'])===ne;});
+    return ev?+(parsePesos(gMoney(ev,'PERDIDA TOTAL'))/1e6).toFixed(2):0;
+  });
+
+  var cCuEl = document.getElementById('cCu');
+  var cCuContainer = document.getElementById('cCuWrap');
+  var cCuW = Math.max(600, evAll.length * 60);
+  cCuEl.style.width  = cCuW + 'px';
+  cCuEl.style.height = '230px';
+  cCuEl.width  = cCuW;
+  cCuEl.height = 230;
+  if(cCuContainer) cCuContainer.style.height = '260px';
+
+  charts['cCu'] = new Chart(cCuEl.getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:evLbls,
+      datasets:[{
+        label:'Pérdida (M COP)',
+        data:evPerdida,
+        backgroundColor: evLbls.map(function(_,i){
+          var pal=['#ff6d00','#fb923c','#fbbf24','#f59e0b','#ef4444','#f97316','#fcd34d','#fdba74',
+                   '#ff1744','#ff4081','#e040fb','#7c4dff','#00e5ff','#22c55e','#ffea00','#c6ff00'];
+          return pal[i%pal.length]+'cc';
+        }),
+        borderColor: evLbls.map(function(_,i){
+          var pal=['#ff6d00','#fb923c','#fbbf24','#f59e0b','#ef4444','#f97316','#fcd34d','#fdba74',
+                   '#ff1744','#ff4081','#e040fb','#7c4dff','#00e5ff','#22c55e','#ffea00','#c6ff00'];
+          return pal[i%pal.length];
+        }),
+        borderWidth:2,
+        borderRadius:{topLeft:8,topRight:8},
+        borderSkipped:false,
+        barThickness:36
+      }]
+    },
+    options:{
+      responsive:false, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      events:['mousemove','mouseout','click','touchstart','touchmove'],
+      plugins:{
+        legend:{display:false},
+        tooltip:Object.assign({},TOOLTIP_CFG,{callbacks:{
+          title:function(ctx){
+            var ne=evAll[ctx[0].dataIndex];
+            if(!ne)return'';
+            var ev=allE.find(function(r){return parseInt(r['REFERENCIA'])===ne;});
+            var cat=ev?String(ev['CATEGORÍA 4 (Interna)']||ev['CLASE EVENTO NIVEL 2']||''):'';
+            return 'Evento Nº'+ne+(cat?' — '+cat.slice(0,45):'');
+          },
+          label:function(ctx){
+            return ' Pérdida: $'+Number(ctx.raw).toLocaleString('es-CO',{minimumFractionDigits:2,maximumFractionDigits:2})+' M COP';
+          },
+          afterBody:function(ctx){
+            var ne=evAll[ctx[0].dataIndex];if(!ne)return[];
+            var tarTotal=allT.filter(function(t){return t['_NE']===ne;}).length;
+            var tarDone =allT.filter(function(t){return t['_NE']===ne&&t['_EST']==='Cerrada';}).length;
+            return ['','Tareas: '+tarTotal+' total • '+tarDone+' cerradas • '+(tarTotal-tarDone)+' pendientes'];
+          }
+        }})
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#1a2638',font:{size:10,weight:'700'}},border:{display:false}},
+        y:{
+          grid:{color:GC},
+          ticks:{color:TC,font:{size:10},callback:function(v){return '$'+v.toLocaleString('es-CO')+' M';}},
+          border:{display:false}
+        }
+      },
+      animation:{duration:600,easing:'easeOutBounce'}
+    }
+  });;
+}
+
+// ════════════════════════════════════════════════════════════════
+// TABLE EVENTOS
+// ════════════════════════════════════════════════════════════════
+function sortTable(k){
+  if(sKey===k)sDir=sDir==='asc'?'desc':'asc';else{sKey=k;sDir='asc';}
+  renderEvTable();
+}
+function getSorted(){
+  return[...filtE].sort((a,b)=>{
+    let av=a[sKey]||'',bv=b[sKey]||'';
+    if(typeof av==='number'&&typeof bv==='number')return sDir==='asc'?av-bv:bv-av;
+    return sDir==='asc'?String(av).localeCompare(String(bv),'es'):String(bv).localeCompare(String(av),'es');
+  });
+}
+function renderEvTable(){
+  if(!loaded)return;
+  const data=getSorted(),tot=data.length,pgs=Math.ceil(tot/epsz)||1;
+  epg=Math.min(epg,pgs);
+  const sl=data.slice((epg-1)*epsz,epg*epsz);
+  document.getElementById('tableCount').textContent=`${tot} evento${tot!==1?'s':''}`;
+  const tb=document.getElementById('evBody');tb.innerHTML='';
+  if(!sl.length){
+    tb.innerHTML=`<tr><td colspan="7"><div class="nd"><div class="nd-ico">🔍</div><div>Sin resultados para los filtros aplicados</div></div></td></tr>`;
+    renderPag('pagE',pgs,epg,p=>{epg=p;renderEvTable();});return;
+  }
+  sl.forEach(r=>{
+    const cu=parsePesos(gMoney(r,'CUANTIA'));
+    const per=parsePesos(gMoney(r,'PERDIDA TOTAL'));
+    const tr=document.createElement('tr');tr.onclick=()=>openFicha(r);
+    tr.innerHTML=`
+      <td><b style="font-family:var(--mono);color:var(--navy)">${r['REFERENCIA']}</b></td>
+      <td>${r['Año']||''}</td>
+      <td>${String(r['Mes']||'').trim()}</td>
+      <td>${String(r['CLASE EVENTO NIVEL 1']||'—')}</td>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap;text-align:right" title="Cuantía: ${fmM(cu)} | Pérdida: ${fmM(per)}">${cu>0?fmM(cu):'—'}</td>
+      <td>${String(r['CATEGORÍA 4 (Interna)']||'—')}</td>
+      <td><button class="btn btn-blue btn-sm" onclick="event.stopPropagation();openFicha(getR(${r['REFERENCIA']}))">Ver ficha</button></td>`;
+    tb.appendChild(tr);
+  });
+  renderPag('pagE',pgs,epg,p=>{epg=p;renderEvTable();});
+}
+function getR(ref){return allE.find(r=>r['REFERENCIA']==ref)||{};}
+function eBadge(e){
+  const s=(e||'').toLowerCase();
+  if(s.includes('cerr'))return`<span class="badge bg-green">${e}</span>`;
+  if(s.includes('aprob'))return`<span class="badge bg-blue">${e}</span>`;
+  return`<span class="badge bg-red">${e||'—'}</span>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// TABLE TAREAS
+// ════════════════════════════════════════════════════════════════
+function renderTaTable(){
+  if(!loaded)return;
+  const tot=filtT.length,pgs=Math.ceil(tot/tpsz)||1;
+  tpg=Math.min(tpg,pgs);
+  const sl=filtT.slice((tpg-1)*tpsz,tpg*tpsz);
+  document.getElementById('tareasCount').textContent=`${tot} tarea${tot!==1?'s':''}`;
+  const tb=document.getElementById('taBody');tb.innerHTML='';
+  if(!sl.length){
+    tb.innerHTML=`<tr><td colspan="9"><div class="nd"><div class="nd-ico">🔍</div><div>${loaded?'Sin resultados para los filtros aplicados':'Carga un archivo Excel para ver las tareas'}</div></div></td></tr>`;
+    renderPag('pagT',pgs,tpg,p=>{tpg=p;renderTaTable();});return;
+  }
+  sl.forEach(t=>{
+    const tb2=t['_TIPO']==='PREVENTIVA'?'bg-prev':'bg-corr';
+    const sb=t['_EST']==='Cerrada'?'bg-green':'bg-orange';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td style="font-family:var(--mono);color:var(--navy3);white-space:nowrap;vertical-align:top">${t['_NE']}</td>
+      <td style="font-family:var(--mono);white-space:nowrap;vertical-align:top">${t['_NT']}</td>
+      <td style="white-space:normal;word-break:break-word;min-width:280px;line-height:1.55;vertical-align:top">${esc(t['_DESC'])}</td>
+      <td style="white-space:nowrap;vertical-align:top"><span class="badge ${tb2}">${t['_TIPO']||'—'}</span></td>
+      <td style="white-space:normal;word-break:break-word;min-width:120px;vertical-align:top">${esc(t['_RESP'])}</td>
+      <td style="white-space:normal;word-break:break-word;min-width:100px;vertical-align:top">${esc(t['_NOMBRE'])}</td>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap;vertical-align:top">${t['_FI']||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap;vertical-align:top">${t['_FF']||'—'}</td>
+      <td style="white-space:nowrap;vertical-align:top"><span class="badge ${sb}">${t['_EST']||'—'}</span></td>`;
+    tb.appendChild(tr);
+  });
+  renderPag('pagT',pgs,tpg,p=>{tpg=p;renderTaTable();});
+}
+
+// ════════════════════════════════════════════════════════════════
+// PAGINATION
+// ════════════════════════════════════════════════════════════════
+function renderPag(cid,tot,cur,cb){
+  const c=document.getElementById(cid);c.innerHTML='';
+  if(tot<=1)return;
+  const add=(lbl,pg,act)=>{const b=document.createElement('button');b.className='pb'+(act?' active':'');b.textContent=lbl;b.onclick=()=>cb(pg);c.appendChild(b);};
+  add('«',1,false);add('‹',Math.max(1,cur-1),false);
+  let st=Math.max(1,cur-2),en=Math.min(tot,st+4);st=Math.max(1,en-4);
+  for(let i=st;i<=en;i++)add(i,i,i===cur);
+  add('›',Math.min(tot,cur+1),false);add('»',tot,false);
+  const info=document.createElement('span');info.className='pi';info.textContent=`Pág. ${cur}/${tot}`;c.appendChild(info);
+}
+
+// ════════════════════════════════════════════════════════════════
+// FICHA EVENTO
+// ════════════════════════════════════════════════════════════════
+function openFicha(r){
+  if(!r||!r['REFERENCIA'])return;
+  curEv=r;
+  const ts=allT.filter(t=>t['_NE']===parseInt(r['REFERENCIA']));
+  document.getElementById('fichaRef').textContent=`Evento Nº ${r['REFERENCIA']} · ${r['Año']||''} ${String(r['Mes']||'').trim()}`;
+  document.getElementById('fichaTitle').textContent=r['CATEGORÍA 4 (Interna)']||r['CLASE EVENTO NIVEL 2']||'Evento de Riesgo Operativo';
+  const body=document.getElementById('fichaBody');body.innerHTML='';
+
+  const MONEY_KEYS=new Set(['CUANTIA','CUANTIA TOTAL RECUPERADA','CUANTIA RECUPERADA SEGUROS','PERDIDA TOTAL']);
+  const secs=[
+    {t:'📅 Identificación y Fechas',c:3,f:[['REFERENCIA','Referencia'],['Año','Año'],['Mes','Mes'],['FECHA INICIO','Fecha Inicio'],['FECHA FINALIZACION','Fecha Finalización'],['FECHA DESCUBRIMIENTO','Fecha Descubrimiento'],['FECHA CONTABILIZACION','Fecha Contabilización'],['CUENTA CONTABLE','Cuenta Contable']]},
+    {t:'🏷 Clasificación',c:2,f:[['CLASE EVENTO NIVEL 1','Clase Nivel 1'],['CLASE EVENTO NIVEL 2','Clase Nivel 2'],['CLASE EVENTO NIVEL 3','Clase Nivel 3'],['CATEGORÍA 4 (Interna)','Categoría 4 (Interna)']]},
+    {t:'💰 Cuantías y Pérdidas (Millones COP)',c:2,f:[['CUANTIA','Cuantía'],['CUANTIA TOTAL RECUPERADA','Cuantía Total Recuperada'],['CUANTIA RECUPERADA SEGUROS','Cuantía Recuperada Seguros'],['PERDIDA TOTAL','Pérdida Total']]},
+    {t:'🛒 Servicio, Canal y Estado',c:2,f:[['SERVICIO / PRODUCTO','Servicio / Producto'],['CANAL ATENCION CLIENTE','Canal Atención Cliente'],['ESTADO EVENTO','Estado Evento'],['REVISION EVENTO','Revisión Evento']]},
+    {t:'👤 Funcionario de Reporte',c:3,f:[['NIT FUNCIONARIO REPORTE EVENTO','NIT'],['NOMBRE FUNCIONARIO REPORTE EVENTO','Nombre'],['EMAIL FUNCIONARIO REPORTE EVENTO','Email']]},
+    {t:'📝 Análisis del Evento',c:1,f:[['DESCRIPCIÓN DE RIESGO','Descripción de Riesgo'],['EVENTO (Qué pasó)','Evento — Qué pasó'],['CAUSA (Por qué ocurrió)','Causa — Por qué ocurrió'],['CONSECUENCIA (Impactos)','Consecuencia — Impactos']]},
+    {t:'📄 Descripción Completa',c:1,f:[['DESCRIPCION EVENTO','Descripción Completa del Evento'],['RIESGOS','Riesgos']]},
+  ];
+  secs.forEach(sec=>{
+    const div=document.createElement('div');div.className='fm-sec';
+    div.innerHTML=`<div class="fm-sec-t">${sec.t}</div>`;
+    const g=document.createElement('div');g.className=`fm-grid${sec.c===3?' g3':''}`;
+    sec.f.forEach(([k,lbl])=>{
+      let raw=r[k]!==undefined&&r[k]!==null?r[k]:'';
+      let display;
+      if(MONEY_KEYS.has(k)){
+        const pesos=parsePesos(gMoney(r,k));
+        // show both: formatted millions + raw value for reference
+        display=pesos>0
+          ? `<span style="font-size:14px;font-weight:700;color:var(--navy)">${fmM(pesos)}</span><br><span style="font-size:10.5px;color:var(--muted)">Valor exacto: $${pesos.toLocaleString('es-CO')}</span>`
+          : '<span style="color:var(--border2)">$0</span>';
+      } else {
+        const val=String(raw).trim();
+        display=esc(val)||'<span style="color:var(--border2)">—</span>';
+      }
+      const big=MONEY_KEYS.has(k)||String(raw).length>80||sec.c===1;
+      const fd=document.createElement('div');
+      fd.className='ff'+(big?(sec.c===3?' full3':' full'):'');
+      fd.innerHTML=`<span class="ff-lbl">${lbl}</span><div class="ff-val">${display}</div>`;
+      g.appendChild(fd);
+    });
+    div.appendChild(g);body.appendChild(div);
+  });
+
+  if(ts.length>0){
+    const div=document.createElement('div');div.className='fm-sec';
+    div.innerHTML=`<div class="fm-sec-t">📌 Tareas Asociadas — Anexo (${ts.length} tareas vinculadas)</div>`;
+    let html=`<div style="overflow-x:auto"><table class="t-ficha"><thead><tr><th>#</th><th>Descripción de la Tarea</th><th>Tipo</th><th>Responsable</th><th>Nombre</th><th>F. Inicio</th><th>F. Fin</th><th>Estado</th></tr></thead><tbody>`;
+    ts.forEach(t=>{
+      const tb=t['_TIPO']==='PREVENTIVA'?'bg-prev':'bg-corr';
+      const sb=t['_EST']==='Cerrada'?'bg-green':'bg-orange';
+      html+=`<tr>
+        <td style="font-family:var(--mono);font-size:11px;white-space:nowrap;vertical-align:top">${t['_NT']}</td>
+        <td style="min-width:260px;white-space:normal;word-break:break-word;vertical-align:top;line-height:1.5">${esc(t['_DESC'])}</td>
+        <td style="white-space:nowrap;vertical-align:top"><span class="badge ${tb}">${t['_TIPO']||''}</span></td>
+        <td style="white-space:normal;word-break:break-word;vertical-align:top;min-width:120px">${esc(t['_RESP'])}</td>
+        <td style="white-space:nowrap;vertical-align:top">${esc(t['_NOMBRE'])}</td>
+        <td style="font-family:var(--mono);font-size:10.5px;white-space:nowrap;vertical-align:top">${t['_FI']||'—'}</td>
+        <td style="font-family:var(--mono);font-size:10.5px;white-space:nowrap;vertical-align:top">${t['_FF']||'—'}</td>
+        <td style="white-space:nowrap;vertical-align:top"><span class="badge ${sb}">${t['_EST']||''}</span></td></tr>`;
+    });
+    html+='</tbody></table></div>';
+    div.innerHTML+=html;body.appendChild(div);
+  } else {
+    const div=document.createElement('div');div.className='fm-sec';
+    div.innerHTML=`<div class="fm-sec-t">📌 Tareas Asociadas</div><div class="alert al-orange">No se encontraron tareas vinculadas al Evento Nº ${r['REFERENCIA']}.</div>`;
+    body.appendChild(div);
+  }
+  document.getElementById('fo').classList.add('open');
+  document.getElementById('fichaBody').scrollTop=0;
+}
+function closeFichaOut(e){if(e.target===document.getElementById('fo'))closeFichaBtn();}
+function closeFichaBtn(){document.getElementById('fo').classList.remove('open');}
+
+// ════════════════════════════════════════════════════════════════
+// PDF EXPORT
+// ════════════════════════════════════════════════════════════════
+function exportPDF(){
+  if(!curEv)return;
+  const r=curEv,ts=allT.filter(t=>t['_NE']===parseInt(r['REFERENCIA']));
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Evento Nº${r['REFERENCIA']}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;color:#1a2638;background:#fff}.page{padding:28px 36px}.hdr{background:#0d2340;color:#fff;padding:18px 22px;border-radius:6px;margin-bottom:20px}.hdr-ref{font-size:9px;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}.hdr-t{font-size:16px;font-weight:700;line-height:1.3}.hdr-m{font-size:10px;opacity:.55;margin-top:5px}.sec{margin-bottom:18px}.sec-t{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#0d2340;border-bottom:2px solid #e67300;padding-bottom:5px;margin-bottom:10px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.g3{grid-template-columns:1fr 1fr 1fr}.f{margin-bottom:4px}.fl{font-size:9px;font-weight:600;color:#8898b0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}.fv{background:#f0f3f8;border:1px solid #dde3ed;border-radius:4px;padding:5px 8px;min-height:20px;font-size:10.5px;word-break:break-word;white-space:pre-wrap;line-height:1.5}.full{grid-column:span 2}.full3{grid-column:span 3}table{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}thead th{background:#0d2340;color:#fff;padding:7px 8px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}tbody td{padding:7px 8px;border-bottom:1px solid #dde3ed;vertical-align:top;word-break:break-word;white-space:normal;font-size:10px;line-height:1.5}tbody tr:nth-child(even){background:#f7f9fc}tbody tr:hover{background:#eef3fb}.td-num{width:28px;text-align:center;font-weight:700;color:#0d2340;font-size:11px}.td-desc{width:auto}.td-tipo{width:80px}.td-resp{width:110px}.td-nombre{width:100px}.td-fecha{width:72px;white-space:nowrap}.td-est{width:68px}.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:8.5px;font-weight:700;text-transform:uppercase}.bp{background:#fff8e1;color:#9a6200;border:1px solid #fde68a}.bc{background:#fdecea;color:#b52a20;border:1px solid #f2b0ab}.bg{background:#e6f5ed;color:#1a7040;border:1px solid #a8dcc0}.bo{background:#fff0e0;color:#c85a00;border:1px solid #fdc88a}.foot{margin-top:26px;border-top:1px solid #dde3ed;padding-top:10px;font-size:9px;color:#8898b0;display:flex;justify-content:space-between}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><div class="page">`);
+  win.document.write(`<div class="hdr"><div class="hdr-ref">Evento de Riesgo Operativo · Nº ${r['REFERENCIA']}</div><div class="hdr-t">${esc(r['CATEGORÍA 4 (Interna)']||r['CLASE EVENTO NIVEL 2']||'Evento de Riesgo')}</div><div class="hdr-m">Generado el ${new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'})} · Dashboard Gestión de Riesgos</div></div>`);
+  const PMONEY=new Set(['CUANTIA','CUANTIA TOTAL RECUPERADA','CUANTIA RECUPERADA SEGUROS','PERDIDA TOTAL']);
+  const secs=[
+    {t:'1. Identificación y Fechas',c:3,f:[['REFERENCIA','Referencia'],['Año','Año'],['Mes','Mes'],['FECHA INICIO','F. Inicio'],['FECHA FINALIZACION','F. Finalización'],['FECHA DESCUBRIMIENTO','F. Descubrimiento'],['FECHA CONTABILIZACION','F. Contabilización'],['CUENTA CONTABLE','Cuenta Contable']]},
+    {t:'2. Clasificación',c:2,f:[['CLASE EVENTO NIVEL 1','Clase Nivel 1'],['CLASE EVENTO NIVEL 2','Clase Nivel 2'],['CLASE EVENTO NIVEL 3','Clase Nivel 3'],['CATEGORÍA 4 (Interna)','Categoría 4']]},
+    {t:'3. Cuantías y Pérdidas (Millones COP)',c:2,f:[['CUANTIA','Cuantía'],['CUANTIA TOTAL RECUPERADA','Cuantía Total Recuperada'],['CUANTIA RECUPERADA SEGUROS','Cuantía Recuperada Seguros'],['PERDIDA TOTAL','Pérdida Total']]},
+    {t:'4. Servicio, Canal y Estado',c:2,f:[['SERVICIO / PRODUCTO','Servicio/Producto'],['CANAL ATENCION CLIENTE','Canal Atención'],['ESTADO EVENTO','Estado'],['REVISION EVENTO','Revisión']]},
+    {t:'5. Funcionario de Reporte',c:3,f:[['NIT FUNCIONARIO REPORTE EVENTO','NIT'],['NOMBRE FUNCIONARIO REPORTE EVENTO','Nombre'],['EMAIL FUNCIONARIO REPORTE EVENTO','Email']]},
+    {t:'6. Análisis del Evento',c:1,f:[['DESCRIPCIÓN DE RIESGO','Descripción de Riesgo'],['EVENTO (Qué pasó)','Evento — Qué pasó'],['CAUSA (Por qué ocurrió)','Causa — Por qué ocurrió'],['CONSECUENCIA (Impactos)','Consecuencia — Impactos']]},
+    {t:'7. Descripción Completa',c:1,f:[['DESCRIPCION EVENTO','Descripción Completa'],['RIESGOS','Riesgos']]},
+  ];
+  secs.forEach(sec=>{
+    win.document.write(`<div class="sec"><div class="sec-t">${sec.t}</div><div class="grid${sec.c===3?' g3':''}">`);
+    sec.f.forEach(([k,lbl])=>{
+      let display;
+      if(PMONEY.has(k)){
+        const pesos=parsePesos(gMoney(r,k));
+        display=pesos>0?`<strong>${fmM(pesos)}</strong><br><small style="color:#8898b0">Exacto: $${pesos.toLocaleString('es-CO')}</small>`:'$0';
+      } else {
+        display=esc(String(r[k]!==undefined?r[k]:'').trim())||'—';
+      }
+      const big=PMONEY.has(k)||String(r[k]||'').length>80||sec.c===1;
+      win.document.write(`<div class="f${big?(sec.c===3?' full3':' full'):''}"><div class="fl">${lbl}</div><div class="fv">${display}</div></div>`);
+    });
+    win.document.write('</div></div>');
+  });
+  if(ts.length>0){
+    win.document.write(`<div class="sec"><div class="sec-t">8. Anexo — Tareas Asociadas (${ts.length})</div><table><colgroup><col class="td-num"><col class="td-desc"><col class="td-tipo"><col class="td-resp"><col class="td-nombre"><col class="td-fecha"><col class="td-fecha"><col class="td-est"></colgroup><thead><tr><th style="width:28px;text-align:center">#</th><th>Descripción de la Tarea</th><th style="width:80px">Tipo</th><th style="width:110px">Responsable</th><th style="width:100px">Nombre</th><th style="width:72px">F. Inicio</th><th style="width:72px">F. Fin</th><th style="width:68px">Estado</th></tr></thead><tbody>`);
+    ts.forEach(t=>{
+      const tipoAbr = t['_TIPO']==='PREVENTIVA'?'P':'C';
+      const estAbr  = t['_EST']==='Cerrada'?'OK':'EP';
+      win.document.write(`<tr style="page-break-inside:avoid"><td style="text-align:center;font-weight:700;color:#0d2340;font-size:11px">${t['_NT']}</td><td style="word-break:break-word;white-space:normal;line-height:1.55;font-size:10px">${esc(t['_DESC'])}</td><td style="text-align:center"><span class="badge ${t['_TIPO']==='PREVENTIVA'?'bp':'bc'}">${tipoAbr}</span></td><td style="font-size:9.5px;word-break:break-word;white-space:normal">${esc(t['_RESP'])}</td><td style="font-size:9.5px">${esc(t['_NOMBRE'])}</td><td style="font-size:9px;white-space:nowrap;color:#4a5870">${t['_FI']||'—'}</td><td style="font-size:9px;white-space:nowrap;color:#4a5870">${t['_FF']||'—'}</td><td style="text-align:center"><span class="badge ${t['_EST']==='Cerrada'?'bg':'bo'}">${estAbr}</span></td></tr>`);
+    });
+    win.document.write('</tbody></table><div style="margin-top:8px;padding:7px 10px;background:#f7f9fc;border:1px solid #dde3ed;border-radius:5px;font-size:9px;color:#4a5870"><strong>Convenciones:</strong> &nbsp; <strong>P</strong> = Preventiva &nbsp;·&nbsp; <strong>C</strong> = Correctiva &nbsp;·&nbsp; <strong>OK</strong> = Cerrada &nbsp;·&nbsp; <strong>EP</strong> = En Proceso</div></div>');
+  }
+  win.document.write(`<div class="foot"><span>Dashboard de Gestión de Riesgos Operativos</span><span>Evento Nº ${r['REFERENCIA']} · ${r['Año']||''} ${String(r['Mes']||'').trim()}</span></div></div></body></html>`);
+  win.document.close();win.focus();setTimeout(()=>win.print(),600);
+}
+
+// ════════════════════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════════════════════
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  ['pE','pT','pG'].forEach(id=>document.getElementById(id).style.display='none');
+  if(tab==='e'){
+    document.querySelectorAll('.tab-btn')[0].classList.add('active');
+    document.getElementById('pE').style.display='block';
+  } else if(tab==='t'){
+    document.querySelectorAll('.tab-btn')[1].classList.add('active');
+    document.getElementById('pT').style.display='block';
+    if(loaded){renderTKPIs();renderTaTable();}
+  } else {
+    document.querySelectorAll('.tab-btn')[2].classList.add('active');
+    document.getElementById('pG').style.display='block';
+    if(loaded){buildGanttFilter();renderGantt();} // renders placeholder if nothing selected
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════
+// GANTT PLANNER
+// ════════════════════════════════════════════════════════════════
+const GANTT_COLORS = [
+  ['#e040fb','#9c27b0'],['#00bcd4','#006064'],['#ff6d00','#bf360c'],
+  ['#00e676','#1b5e20'],['#7c4dff','#311b92'],['#ff1744','#880e4f'],
+  ['#ffea00','#f57f17'],['#00e5ff','#006064'],['#ff4081','#c51162'],
+  ['#69f0ae','#00600f'],['#40c4ff','#01579b'],['#ffd740','#ff6f00']
+];
+
+const selGanttEvents = new Set(); // selected event numbers for Gantt
+
+function buildGanttFilter(){
+  if(!loaded) return;
+  const evNums = [...new Set(allT.map(t=>t['_NE']))].sort((a,b)=>a-b);
+  const grid = document.getElementById('ganttChipGrid');
+  if(!grid) return;
+  grid.innerHTML = '';
+
+  evNums.forEach(function(ne,i){
+    const ev = allE.find(r => parseInt(r['REFERENCIA']) === ne);
+    const cat = ev ? String(ev['CATEGORÍA 4 (Interna)'] || ev['CLASE EVENTO NIVEL 2'] || '').trim() : '';
+    const taskCount = allT.filter(t=>t['_NE']===ne).length;
+    const cerradas  = allT.filter(t=>t['_NE']===ne && t['_EST']==='Cerrada').length;
+    const isSel = selGanttEvents.has(ne);
+    const pct = taskCount ? Math.round(cerradas/taskCount*100) : 0;
+    // Progreso: 100% = verde, <100% = naranja claro
+    const progColor = pct === 100 ? '#22c55e' : '#fb923c';
+    const pctColor  = pct === 100 ? '#15803d' : '#c2410c';
+
+    const chip = document.createElement('div');
+    chip.className = 'ev-badge '+(isSel?'ev-sel':'ev-unsel');
+    chip.setAttribute('data-ne', String(ne));
+    chip.setAttribute('data-lbl', (cat+' '+ne).toLowerCase());
+    chip.setAttribute('data-ci', String(i % 12));
+    chip.setAttribute('title', 'Evento '+ne+(cat?' — '+cat:'')+' | '+taskCount+' tareas | '+pct+'% cerradas');
+    chip.innerHTML =
+      '<div class="ev-num">'+ne+'</div>' +
+      '<div class="ev-label">'+taskCount+' tarea'+(taskCount!==1?'s':'')+'</div>' +
+      '<div style="font-size:11px;font-weight:700;margin-top:3px;color:'+pctColor+'">'+pct+'%</div>' +
+      '<div class="ev-prog"><div class="ev-prog-fill" style="width:'+pct+'%;background:'+progColor+'"></div></div>';
+    chip.onclick = function(){ toggleGanttChip(ne, this, parseInt(this.getAttribute('data-ci'))); };
+    grid.appendChild(chip);
+  });
+  updateGanttSelCount();
+}
+
+function toggleGanttChip(ne, chip, colorIdx){
+  // Solo un evento a la vez
+  if(selGanttEvents.has(ne)){
+    // Deseleccionar
+    selGanttEvents.clear();
+    chip.className = 'ev-badge ev-unsel';
+    chip.style.background = '';
+  } else {
+    // Deseleccionar todos primero
+    selGanttEvents.clear();
+    document.querySelectorAll('#ganttChipGrid .ev-badge').forEach(function(ch){
+      ch.className = 'ev-badge ev-unsel';
+      ch.style.background = '';
+    });
+    // Seleccionar este — verde claro
+    selGanttEvents.add(ne);
+    chip.className = 'ev-badge ev-sel';
+    chip.style.background = ''; // el CSS .ev-sel maneja el fondo verde
+  }
+  updateGanttSelCount();
+  renderGantt();
+}
+
+function updateGanttSelCount(){
+  const el = document.getElementById('ganttSelCount');
+  if(!el) return;
+  const n = selGanttEvents.size;
+  if(n === 0){
+    el.innerHTML = '<span style="color:var(--muted)">Ningún evento seleccionado</span>';
+  } else {
+    const ne = [...selGanttEvents][0];
+    const ev = allE.find(r=>parseInt(r['REFERENCIA'])===ne);
+    const cat = ev ? String(ev['CATEGORÍA 4 (Interna)']||ev['CLASE EVENTO NIVEL 2']||'').trim().slice(0,40) : '';
+    el.innerHTML = '<span style="color:var(--green);font-weight:700">✓ Evento '+ne+'</span>'+(cat?'<br><span style="font-size:10px;color:var(--muted)">'+esc(cat)+'</span>':'');
+  }
+}
+
+function filterGanttChips(q){
+  const lower = q.toLowerCase();
+  document.querySelectorAll('#ganttChipGrid .ev-badge').forEach(chip=>{
+    const lbl = chip.getAttribute('data-lbl')||'';
+    chip.classList.toggle('hidden', q.length>0 && !lbl.includes(lower));
+  });
+}
+
+// Legacy stubs (no longer used but kept for safety)
+function toggleGanttAll(){}
+function toggleGanttOpt(){}
+function updatePillsGantt(){}
+function removeGanttEv(ne){
+  selGanttEvents.delete(ne);
+  const chip = document.querySelector('#ganttChipGrid [data-ne="'+ne+'"]');
+  if(chip){
+    const cls = chip.className.match(/gc\d+/);
+    const colorIdx = cls ? cls[0].replace('gc','') : '0';
+    chip.className = 'gantt-chip gc'+colorIdx+' unsel';
+  }
+  updateGanttSelCount();
+}
+
+function applyGanttFilter(){ renderGantt(); }
+
+function clearGanttFilter(){
+  selGanttEvents.clear();
+  document.querySelectorAll('#ganttChipGrid .ev-badge').forEach(chip=>{
+    const cls = chip.className.match(/gc\d+/);
+    const ci = cls ? cls[0].replace('gc','') : '0';
+    chip.className = 'gantt-chip gc'+ci+' unsel';
+  });
+  const srch = document.getElementById('ganttSearch');
+  if(srch){ srch.value=''; filterGanttChips(''); }
+  updateGanttSelCount();
+  renderGantt();
+}
+
+function parseGanttDate(str){
+  if(!str || str==='—') return null;
+  const p = str.split('/');
+  if(p.length===3) return new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
+  return null;
+}
+
+function renderGantt(){
+  if(!loaded) return;
+  const wrap = document.getElementById('ganttWrap');
+  if(!wrap) return;
+
+  // Which events to show — require explicit selection
+  if(selGanttEvents.size === 0){
+    wrap.innerHTML = '<div class="nd"><div class="nd-ico">📅</div><div style="font-size:14px;font-weight:600;color:var(--navy);margin-bottom:6px">Selecciona un evento para ver el Gantt</div><div style="font-size:12px">Usa el selector de arriba y haz clic en <b>Ver Gantt</b></div></div>';
+    return;
+  }
+  const evNums = [...selGanttEvents].sort((a,b)=>a-b);
+
+  // Filter tasks for those events
+  const tasks = allT.filter(t => evNums.includes(t['_NE']));
+  if(!tasks.length){
+    wrap.innerHTML = '<div class="gantt-empty"><div style="font-size:36px;margin-bottom:10px">📅</div><div>No hay tareas para los eventos seleccionados</div></div>';
+    return;
+  }
+
+  // Compute global date range
+  let minDate = null, maxDate = null;
+  tasks.forEach(t => {
+    const fi = parseGanttDate(t['_FI']), ff = parseGanttDate(t['_FF']);
+    if(fi){ if(!minDate||fi<minDate) minDate=fi; if(!maxDate||fi>maxDate) maxDate=fi; }
+    if(ff){ if(!minDate||ff<minDate) minDate=ff; if(!maxDate||ff>maxDate) maxDate=ff; }
+  });
+  if(!minDate) minDate = new Date();
+  if(!maxDate) maxDate = new Date(minDate.getTime() + 30*86400000);
+
+  // Add padding
+  minDate = new Date(minDate.getTime() - 3*86400000);
+  maxDate = new Date(maxDate.getTime() + 3*86400000);
+
+  const totalDays = Math.ceil((maxDate-minDate)/86400000);
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Build day labels
+  const days = [];
+  for(let i=0;i<totalDays;i++){
+    const d = new Date(minDate.getTime()+i*86400000);
+    days.push(d);
+  }
+
+  // Stats
+  const totTasks = tasks.length;
+  const cerradas = tasks.filter(t=>t['_EST']==='Cerrada').length;
+  const enProceso = totTasks - cerradas;
+  const evCount = evNums.length;
+
+  // Build HTML
+  let html = '';
+
+  // Summary KPIs
+  html += '<div class="gantt-summary">';
+  html += '<div class="gantt-kpi" style="--kc:var(--navy)"><div class="gantt-kpi-lbl">Eventos</div><div class="gantt-kpi-val">'+evCount+'</div><div class="gantt-kpi-sub">seleccionados</div></div>';
+  html += '<div class="gantt-kpi" style="--kc:#7c4dff"><div class="gantt-kpi-lbl">Total Tareas</div><div class="gantt-kpi-val">'+totTasks+'</div><div class="gantt-kpi-sub">en el período</div></div>';
+  html += '<div class="gantt-kpi" style="--kc:#00e676"><div class="gantt-kpi-lbl">Cerradas</div><div class="gantt-kpi-val">'+cerradas+'</div><div class="gantt-kpi-sub">'+(totTasks?Math.round(cerradas/totTasks*100):0)+'% completadas</div></div>';
+  html += '<div class="gantt-kpi" style="--kc:#ff6d00"><div class="gantt-kpi-lbl">En Proceso</div><div class="gantt-kpi-val">'+enProceso+'</div><div class="gantt-kpi-sub">pendientes de cierre</div></div>';
+  html += '</div>';
+
+  // Gantt chart
+  const CELL_W = 38; // fixed cell width — scroll handles overflow
+
+  html += '<div class="gantt-scroll-wrap">';
+  html += '<div class="gantt-container">';
+
+  // Header row — full real dates
+  html += '<div class="gantt-header">';
+  html += '<div class="gantt-ev-col">Evento / Tarea</div>';
+  html += '<div class="gantt-timeline">';
+  const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const dayNames   = ['Do','Lu','Ma','Mi','Ju','Vi','Sa'];
+  days.forEach((d, di) => {
+    const isWknd  = d.getDay()===0||d.getDay()===6;
+    const isToday = d.toDateString()===today.toDateString();
+    const isFirst = di===0; // first cell always shows full date
+    const isMonthChange = d.getDate()===1; // new month
+
+    // Build label:
+    // First day or month change → "dd Mmm YYYY" stacked as two lines
+    // Other days → "dd" with day-of-week tiny above
+    let topLine, botLine;
+    if(isFirst || isMonthChange){
+      topLine = monthNames[d.getMonth()]+' '+d.getFullYear();
+      botLine = String(d.getDate()).padStart(2,'0');
+    } else {
+      topLine = dayNames[d.getDay()];
+      botLine = String(d.getDate()).padStart(2,'0');
+    }
+
+    let cls = 'gantt-day-hdr';
+    if(isWknd)  cls += ' weekend';
+    if(isToday) cls += ' today-hdr';
+
+    html += '<div class="'+cls+'" style="min-width:'+CELL_W+'px;flex:0 0 '+CELL_W+'px;padding:5px 2px 4px;line-height:1.2">'
+          + '<div style="font-size:7.5px;opacity:.65;font-weight:500">'+topLine+'</div>'
+          + '<div style="font-size:9px;font-weight:700">'+botLine+'</div>'
+          + '</div>';
+  });
+  html += '</div></div>';
+
+  // Body
+  html += '<div class="gantt-body">';
+  evNums.forEach((ne,evIdx) => {
+    const evTasks = tasks.filter(t=>t['_NE']===ne);
+    if(!evTasks.length) return;
+    const ev = allE.find(r=>parseInt(r['REFERENCIA'])===ne);
+    const evLabel = 'Evento '+ne+(ev?' — '+String(ev['CATEGORÍA 4 (Interna)']||ev['CLASE EVENTO NIVEL 2']||''):'');
+    const [c1,c2] = GANTT_COLORS[evIdx % GANTT_COLORS.length];
+
+    // Event group header
+    html += '<div class="gantt-ev-group">';
+    html += '<div class="gantt-ev-label" style="border-left:4px solid '+c1+'">';
+    html += '<div class="gantt-ev-dot" style="background:'+c1+'"></div>';
+    html += '<div class="gantt-ev-name" title="'+evLabel+'">'+evLabel+'</div>';
+    html += '</div>';
+
+    // Task rows
+    evTasks.forEach(t => {
+      const fi = parseGanttDate(t['_FI']);
+      const ff = parseGanttDate(t['_FF']);
+      const isCerrada = t['_EST']==='Cerrada';
+
+      // bar position
+      let barLeft=0, barWidth=CELL_W;
+      if(fi){
+        const startDay = Math.max(0, Math.ceil((fi-minDate)/86400000));
+        barLeft = startDay * CELL_W;
+        if(ff){
+          const endDay = Math.ceil((ff-minDate)/86400000);
+          barWidth = Math.max(CELL_W, (endDay-startDay)*CELL_W);
+        } else {
+          barWidth = CELL_W * 2;
+        }
+      }
+
+      const durDays = (fi && ff) ? Math.ceil((ff-fi)/86400000)+1 : null;
+      const durLabel = durDays ? durDays+'d' : '';
+      const barClass = isCerrada ? 'cerrada' : 'en-proceso';
+      const tipoBadge = t['_TIPO']==='PREVENTIVA' ? '🛡' : '🔧';
+      const barTitle = 'Tarea '+t['_NT']+': '+t['_DESC']+' | Inicio: '+t['_FI']+' | Fin: '+(t['_FF']||'En proceso')+' | '+t['_TIPO'];
+
+      const totalWidth = totalDays * CELL_W;
+
+      html += '<div class="gantt-row">';
+      html += '<div class="gantt-task-info">';
+      html += '<div class="gantt-task-num">'+tipoBadge+' Tarea '+t['_NT']+'</div>';
+      html += '<div class="gantt-task-desc">'+esc(t['_DESC'])+'</div>';
+      html += '</div>';
+      html += '<div class="gantt-bars" style="width:'+(totalWidth)+'px">';
+
+      // Grid lines
+      days.forEach((d,di)=>{
+        const isWknd = d.getDay()===0||d.getDay()===6;
+        const isTd   = d.toDateString()===today.toDateString();
+        html += '<div class="gantt-grid-line'+(isWknd?' weekend':'')+(isTd?' today':'')+'" style="left:'+(di*CELL_W)+'px"></div>';
+      });
+
+      // Bar
+      var barBg = isCerrada
+        ? 'linear-gradient(135deg,#22c55e,#15803d)'
+        : 'linear-gradient(135deg,#f97316,#ea580c)';
+      var barBorder = isCerrada ? '#16a34a' : '#c2410c';
+      html += '<div class="gantt-bar '+barClass+'" title="'+esc(barTitle)+'" style="left:'+barLeft+'px;width:'+barWidth+'px;background:'+barBg+';box-shadow:0 2px 8px '+barBorder+'55">'+durLabel+'</div>';
+      html += '</div></div>';
+    });
+    html += '</div>'; // gantt-ev-group
+  });
+  html += '</div>'; // gantt-body
+
+  // Legend
+  html += '<div class="gantt-legend">';
+  html += '<div class="gantt-legend-item"><div class="gantt-legend-box" style="background:linear-gradient(135deg,#22c55e,#15803d)"></div> Cerrada</div>';
+  html += '<div class="gantt-legend-item"><div class="gantt-legend-box" style="background:linear-gradient(135deg,#f97316,#ea580c)"></div> En Proceso</div>';
+  html += '<div class="gantt-legend-item"><div style="width:2px;height:14px;background:#ff1744"></div> Hoy</div>';
+  html += '<div class="gantt-legend-item">🛡 Preventiva &nbsp; 🔧 Correctiva</div>';
+  html += '</div>';
+
+  html += '</div>'; // gantt-container
+  html += '</div>'; // gantt-scroll-wrap
+  wrap.innerHTML = html;
+}
+
+function showLoad(v){document.getElementById('lo').classList.toggle('show',v);}
+
+
+// ════════════════════════════════════════════════════════════════
+// BOOT — load persisted data on startup
+// ════════════════════════════════════════════════════════════════
+function updateLastLoadedBadge(fileName, date){
+  const badge=document.getElementById('lastLoadedBadge');
+  const nameEl=document.getElementById('fileNameBadge');
+  if(badge && nameEl){
+    const d=date instanceof Date?date:new Date(date);
+    const dateStr=d.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const timeStr=d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    nameEl.textContent=fileName+' · '+dateStr+' '+timeStr;
+    badge.style.display='flex';
+  }
+}
+
+// URL del JSON generado automáticamente por GitHub Actions
+const GITHUB_JSON_URL = 'https://raw.githubusercontent.com/feboractividadeslibres-dot/Eventos-de-Riesgo-Febor/main/datos.json';
+
+async function bootDashboard(){
+  showLoad(true);
+  document.getElementById('lo').querySelector('.lt').textContent='Cargando datos desde GitHub…';
+
+  // ── Cargar datos.json desde GitHub ──
+  try{
+    const resp = await fetch(GITHUB_JSON_URL + '?t=' + Date.now());
+    if(resp.ok){
+      const data = await resp.json();
+      const eventos = data.eventos || [];
+      const tareas  = data.tareas  || [];
+      if(eventos.length > 0){
+        allE = eventos.map(r => {
+          const c = {};
+          for(const k in r){
+            c[k] = r[k];
+            const kn = k.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+            if(kn !== k) c[kn] = r[k];
+          }
+          return c;
+        });
+        allT = tareas.map(r => {
+          const c = {};
+          for(const k in r){
+            c[k] = r[k];
+            const kn = k.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+            if(kn !== k) c[kn] = r[k];
+          }
+          c['_NE']   = parseInt(c['N° EVENTO']||c['N° Evento']||c['NUMERO EVENTO']||0);
+          c['_NT']   = c['N° TAREA']||c['N° Tarea']||c['NUMERO TAREA']||'';
+          c['_DESC'] = c['DESCRIPCIÓN DE LA TAREA']||c['DESCRIPCION DE LA TAREA']||c['DESCRIPCION']||'';
+          c['_TIPO'] = (c['TIPO DE ACCIÓN']||c['TIPO DE ACCION']||'').toUpperCase().includes('PREV') ? 'PREVENTIVA' : 'CORRECTIVA';
+          c['_RESP'] = c['RESPONSABLE']||'';
+          c['_NOMB'] = c['NOMBRE']||'';
+          c['_FI']   = c['FECHA DE INICIO']||c['F. INICIO']||c['FECHA INICIO']||'';
+          c['_FF']   = c['FECHA DE FINALIZACIÓN']||c['FECHA DE FINALIZACION']||c['F. FINALIZACIÓN']||c['F. FIN']||'';
+          c['_EST']  = c['ESTADO']||'';
+          return c;
+        });
+        loaded = true;
+        filtE = [...allE]; filtT = [...allT];
+        document.getElementById('emptyBanner').style.display = 'none';
+        document.getElementById('tcE').textContent = allE.length;
+        document.getElementById('tcT').textContent = allT.length;
+        updateLastLoadedBadge('GitHub · datos actualizados', new Date());
+        buildFiltersE(); buildFiltersT(); renderAll();
+        saveToStorage('datos.json', allE, allT);
+        showLoad(false);
+        return;
+      }
+    }
+  } catch(e){
+    console.warn('[GitHub JSON] Error:', e.message);
+  }
+
+  // ── Fallback: caché local ──
+  document.getElementById('lo').querySelector('.lt').textContent='Sin conexión — cargando datos guardados…';
+  try{
+    const saved = await loadFromStorage();
+    if(saved && saved.allE && saved.allE.length > 0){
+      allE = saved.allE; allT = saved.allT || [];
+      loaded = true; filtE = [...allE]; filtT = [...allT];
+      document.getElementById('emptyBanner').style.display = 'none';
+      document.getElementById('tcE').textContent = allE.length;
+      document.getElementById('tcT').textContent = allT.length;
+      updateLastLoadedBadge(saved.meta.fileName||'caché local', saved.meta.savedAt);
+      buildFiltersE(); buildFiltersT(); renderAll();
+      showLoad(false);
+    } else {
+      showLoad(false);
+    }
+  } catch(e){
+    console.warn('Boot load failed:', e);
+    showLoad(false);
+  }
+}
+// Run on page load
+if(typeof window.storage !== 'undefined'){
+  bootDashboard();
+} else {
+  // storage not available in this environment, just hide loader
+  showLoad(false);
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>
