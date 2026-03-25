@@ -3,7 +3,8 @@ name: Convertir Excel a JSON
 on:
   push:
     paths:
-      - 'Evento_Riesgo_Febor.xlsx'  # Se activa solo cuando subes el Excel
+      - 'Evento_Riesgo_Febor.xlsx'
+  workflow_dispatch:
 
 jobs:
   convertir:
@@ -24,7 +25,7 @@ jobs:
       - name: Convertir Excel a JSON
         run: |
           python3 - <<'PYEOF'
-          import openpyxl, json, re
+          import openpyxl, json
 
           wb = openpyxl.load_workbook('Evento_Riesgo_Febor.xlsx', data_only=True)
 
@@ -36,7 +37,6 @@ jobs:
 
           resultado = {}
 
-          # ── Hoja Eventos de Riesgos ──
           hoja_e = next((n for n in wb.sheetnames if 'eventos de riesgo' in n.lower()), None)
           if hoja_e:
               ws = wb[hoja_e]
@@ -51,12 +51,10 @@ jobs:
               resultado['eventos'] = datos
               print(f'Eventos: {len(datos)} filas')
 
-          # ── Hoja Eventos-Tareas ──
           hoja_t = next((n for n in wb.sheetnames if 'tarea' in n.lower()), None)
           if hoja_t:
               ws = wb[hoja_t]
               rows = list(ws.iter_rows())
-              # Buscar fila de encabezado real
               hi = 0
               for i, row in enumerate(rows):
                   vals = [normalizar(c.value).lower() for c in row]
@@ -74,7 +72,6 @@ jobs:
 
           with open('datos.json', 'w', encoding='utf-8') as f:
               json.dump(resultado, f, ensure_ascii=False, indent=2, default=str)
-
           print('datos.json generado OK')
           PYEOF
 
