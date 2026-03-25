@@ -1081,9 +1081,14 @@ const STORAGE_META='gr_dashboard_meta';
 async function saveToStorage(fileName, evData, taData){
   try{
     const meta={fileName, savedAt:new Date().toISOString(), evCount:evData.length, taCount:taData.length};
-    await window.storage.set(STORAGE_META, JSON.stringify(meta));
     const payload=JSON.stringify({allE:evData, allT:taData});
-    await window.storage.set(STORAGE_KEY, payload);
+    if(typeof window.storage !== 'undefined' && window.storage && typeof window.storage.set === 'function'){
+      await window.storage.set(STORAGE_META, JSON.stringify(meta));
+      await window.storage.set(STORAGE_KEY, payload);
+    }else{
+      localStorage.setItem(STORAGE_META, JSON.stringify(meta));
+      localStorage.setItem(STORAGE_KEY, payload);
+    }
     console.log('[Storage] Saved OK:', meta);
   }catch(err){
     console.warn('[Storage] Save failed:', err);
@@ -1092,12 +1097,21 @@ async function saveToStorage(fileName, evData, taData){
 
 async function loadFromStorage(){
   try{
-    const metaRes=await window.storage.get(STORAGE_META);
-    const dataRes=await window.storage.get(STORAGE_KEY);
-    if(!metaRes||!dataRes)return null;
-    const meta=JSON.parse(metaRes.value);
-    const data=JSON.parse(dataRes.value);
-    return{meta, allE:data.allE||[], allT:data.allT||[]};
+    if(typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function'){
+      const metaRes=await window.storage.get(STORAGE_META);
+      const dataRes=await window.storage.get(STORAGE_KEY);
+      if(!metaRes||!dataRes)return null;
+      const meta=JSON.parse(metaRes.value);
+      const data=JSON.parse(dataRes.value);
+      return{meta, allE:data.allE||[], allT:data.allT||[]};
+    }else{
+      const metaRaw=localStorage.getItem(STORAGE_META);
+      const dataRaw=localStorage.getItem(STORAGE_KEY);
+      if(!metaRaw||!dataRaw)return null;
+      const meta=JSON.parse(metaRaw);
+      const data=JSON.parse(dataRaw);
+      return{meta, allE:data.allE||[], allT:data.allT||[]};
+    }
   }catch(err){
     console.warn('[Storage] Load failed:', err);
     return null;
@@ -2481,8 +2495,7 @@ function updateLastLoadedBadge(fileName, date){
 
 // URL del JSON generado automáticamente por GitHub Actions
 const GITHUB_JSON_URL = 'https://raw.githubusercontent.com/feboractividadeslibres-dot/Eventos-de-Riesgo-Febor/main/datos.json';
-const LOCAL_JSON_URL = './datos.json';
-
+const LOCAL_JSON_URL  = './datos.json';
 
 function buildNoCacheUrl(url){
   const sep = url.includes('?') ? '&' : '?';
@@ -2497,75 +2510,49 @@ async function fetchJsonWithDebug(url, sourceName){
 }
 
 function normalizeLoadedEventos(eventos){
-  return (eventos||[]).map(r => {
-    const c = {};
+  return (eventos||[]).map(r=>{
+    const c={};
     for(const k in r){
-      c[k] = r[k];
-      const kn = String(k).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-      if(kn !== k) c[kn] = r[k];
+      const v=r[k];
+      c[k]=v;
+      const kn=String(k).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      if(kn!==k)c[kn]=v;
     }
     return c;
   });
 }
 
-function findTaskKey(obj, testFn){
-  return Object.keys(obj).find(k => testFn(String(k||'').replace(/\n/g,' ').replace(/\s+/g,' ').trim().toLowerCase()));
-}
-
-function excelSerialToDateString(n){
-  const d = new Date((Number(n)-25569)*86400000);
-  return isNaN(d) ? '' : fdate(d);
-}
-
 function normalizeLoadedTareas(tareas){
-  const out = [];
-  (tareas||[]).forEach(r => {
-    const c = {};
+  return (tareas||[]).map(r=>{
+    const c={};
     for(const k in r){
-      let v = r[k];
-      if(v instanceof Date) v = fdate(v);
-      c[k] = v;
-      const kn = String(k).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-      if(kn !== k) c[kn] = v;
+      const v=r[k];
+      c[k]=v;
+      const kn=String(k).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      if(kn!==k)c[kn]=v;
     }
 
-    const neKey   = findTaskKey(c, k => k.includes('evento') && (k.includes('n°') || k.includes('no ') || k.includes('numero')));
-    const ntKey   = findTaskKey(c, k => k.includes('tarea')  && (k.includes('n°') || k.includes('no ') || k.includes('numero')));
-    const descKey = findTaskKey(c, k => k.includes('descripci') && k.includes('tarea'));
-    const tipoKey = findTaskKey(c, k => k.includes('tipo') && (k.includes('accion') || k.includes('acción')));
-    const respKey = findTaskKey(c, k => k.includes('responsable'));
-    const nombKey = findTaskKey(c, k => k === 'nombre' || k.includes('nombre funcionario') || k.includes('nombre responsable'));
-    const fiKey   = findTaskKey(c, k => k.includes('fecha de inicio') || k == 'f. inicio' || k == 'inicio');
-    const ffKey   = findTaskKey(c, k => k.includes('finaliz') || k == 'f. fin' || k == 'fecha fin');
-    const estKey  = findTaskKey(c, k => k === 'estado' || k.includes('estado tarea'));
+    const numEventoRaw = c['_NE'] ?? c['N° Evento'] ?? c['N° EVENTO'] ?? c['NUMERO EVENTO'] ?? c['N° \nEvento'] ?? c['N°\nEvento'] ?? '';
+    const numTareaRaw  = c['_NT'] ?? c['N° Tarea'] ?? c['N° TAREA'] ?? c['NUMERO TAREA'] ?? '';
+    const descRaw      = c['_DESC'] ?? c['Descripción de la Tarea'] ?? c['DESCRIPCIÓN DE LA TAREA'] ?? c['DESCRIPCION DE LA TAREA'] ?? '';
+    const tipoRaw      = c['_TIPO'] ?? c['Tipo de acción'] ?? c['TIPO DE ACCIÓN'] ?? c['TIPO DE ACCION'] ?? '';
+    const respRaw      = c['_RESP'] ?? c['Responsable (s)'] ?? c['RESPONSABLE'] ?? '';
+    const nombRaw      = c['_NOMBRE'] ?? c['_NOMB'] ?? c['Nombre'] ?? c['NOMBRE'] ?? '';
+    const fiRaw        = c['_FI'] ?? c['Fecha de Inicio'] ?? c['FECHA DE INICIO'] ?? c['F. INICIO'] ?? '';
+    const ffRaw        = c['_FF'] ?? c['Fecha de Finalización'] ?? c['FECHA DE FINALIZACIÓN'] ?? c['FECHA DE FINALIZACION'] ?? c['F. FIN'] ?? '';
+    const estRaw       = c['_EST'] ?? c['Estado'] ?? c['ESTADO'] ?? '';
 
-    let ne = neKey ? c[neKey] : (c['_NE'] ?? '');
-    if(ne === '' || ne === null || ne === undefined) return;
-    const neInt = parseInt(ne);
-    if(isNaN(neInt) || neInt <= 0) return;
-
-    let fi = fiKey ? c[fiKey] : (c['_FI'] || '');
-    let ff = ffKey ? c[ffKey] : (c['_FF'] || '');
-    if(typeof fi === 'number' && fi > 10000) fi = excelSerialToDateString(fi);
-    if(typeof ff === 'number' && ff > 10000) ff = excelSerialToDateString(ff);
-    if(fi instanceof Date) fi = fdate(fi);
-    if(ff instanceof Date) ff = fdate(ff);
-
-    c['_NE']   = neInt;
-    c['_NT']   = parseInt(ntKey ? c[ntKey] : (c['_NT'] || 0)) || 0;
-    c['_DESC'] = String(descKey ? c[descKey] : (c['_DESC'] || c['DESCRIPCIÓN DE LA TAREA'] || c['DESCRIPCION DE LA TAREA'] || c['DESCRIPCION'] || '')).trim();
-    const tipoRaw = String(tipoKey ? c[tipoKey] : (c['_TIPO'] || '')).trim();
-    c['_TIPO'] = tipoRaw ? (tipoRaw.toUpperCase().includes('PREV') ? 'PREVENTIVA' : 'CORRECTIVA') : '';
-    c['_RESP'] = String(respKey ? c[respKey] : (c['_RESP'] || c['RESPONSABLE'] || '')).trim();
-    c['_NOMBRE'] = String(nombKey ? c[nombKey] : (c['_NOMBRE'] || c['_NOMB'] || c['NOMBRE'] || '')).trim();
-    c['_NOMB'] = c['_NOMBRE'];
-    c['_FI']   = String(fi || '').trim();
-    c['_FF']   = String(ff || '').trim();
-    const estRaw = String(estKey ? c[estKey] : (c['_EST'] || '')).trim();
-    c['_EST']  = estRaw || (c['_FF'] ? 'Cerrada' : 'En Proceso');
-    out.push(c);
-  });
-  return out;
+    c['_NE'] = parseInt(numEventoRaw)||0;
+    c['_NT'] = String(numTareaRaw ?? '').trim();
+    c['_DESC'] = String(descRaw ?? '').trim();
+    c['_TIPO'] = String(tipoRaw ?? '').trim().toUpperCase();
+    c['_RESP'] = String(respRaw ?? '').trim();
+    c['_NOMBRE'] = String(nombRaw ?? '').trim();
+    c['_FI'] = fiRaw instanceof Date ? fdate(fiRaw) : String(fiRaw ?? '').trim();
+    c['_FF'] = ffRaw instanceof Date ? fdate(ffRaw) : String(ffRaw ?? '').trim();
+    c['_EST'] = String(estRaw ?? '').trim() || (c['_FF'] ? 'Cerrada' : 'En Proceso');
+    return c;
+  }).filter(t=>t['_NE']>0);
 }
 
 function applyJsonData(data, sourceLabel){
@@ -2594,23 +2581,20 @@ async function bootDashboard(){
   showLoad(true);
   document.getElementById('lo').querySelector('.lt').textContent='Cargando datos desde GitHub…';
 
-  // ── Intento 1: datos.json del mismo sitio publicado ──
   try{
     const data = await fetchJsonWithDebug(LOCAL_JSON_URL, 'LOCAL JSON');
-    if(applyJsonData(data, 'Sitio publicado · datos actualizados')) return;
-  } catch(e){
+    if(applyJsonData(data, 'Sitio publicado · datos.json')) return;
+  }catch(e){
     console.warn('[LOCAL JSON] Error:', e.message);
   }
 
-  // ── Intento 2: datos.json desde GitHub RAW ──
   try{
     const data = await fetchJsonWithDebug(GITHUB_JSON_URL, 'GITHUB RAW');
-    if(applyJsonData(data, 'GitHub · datos actualizados')) return;
-  } catch(e){
+    if(applyJsonData(data, 'GitHub RAW · datos.json')) return;
+  }catch(e){
     console.warn('[GitHub JSON] Error:', e.message);
   }
 
-  // ── Fallback: caché local ──
   document.getElementById('lo').querySelector('.lt').textContent='Sin conexión — cargando datos guardados…';
   try{
     const saved = await loadFromStorage();
@@ -2632,12 +2616,8 @@ async function bootDashboard(){
   }
 }
 // Run on page load
-if(typeof window.storage !== 'undefined'){
-  bootDashboard();
-} else {
-  // storage not available in this environment, just hide loader
-  showLoad(false);
-}
+bootDashboard()
+
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 </script>
 </body>
