@@ -589,6 +589,7 @@ body.drag-over::before{display:flex}
   #ganttChipGrid{grid-template-columns:repeat(2,1fr)!important}
 }
 
+
 </style>
 </head>
 <body>
@@ -2463,6 +2464,11 @@ function renderGantt(){
 function showLoad(v){document.getElementById('lo').classList.toggle('show',v);}
 
 // ════════════════════════════════════════════════════════════════
+// ONEDRIVE SYNC
+
+}
+
+// ════════════════════════════════════════════════════════════════
 // BOOT — load persisted data on startup
 // ════════════════════════════════════════════════════════════════
 function updateLastLoadedBadge(fileName, date){
@@ -2477,21 +2483,40 @@ function updateLastLoadedBadge(fileName, date){
   }
 }
 
+// URL del Excel en GitHub (raw)
+const GITHUB_EXCEL_URL = 'https://raw.githubusercontent.com/feboractividadeslibres-dot/Eventos-de-Riesgo-Febor/main/Evento_Riesgo_Febor.xlsx';
+
 async function bootDashboard(){
   showLoad(true);
-  document.getElementById('lo').querySelector('.lt').textContent='Cargando datos guardados…';
+  document.getElementById('lo').querySelector('.lt').textContent='Cargando datos desde GitHub…';
+
+  // ── Cargar Excel directo desde GitHub ──
+  try{
+    const resp = await fetch(GITHUB_EXCEL_URL + '?t=' + Date.now()); // cache-bust
+    if(resp.ok){
+      const ab = await resp.arrayBuffer();
+      const wb = XLSX.read(ab, {type:'array', cellDates:true});
+      const now = new Date().toLocaleString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      parseWB(wb, 'GitHub · Evento_Riesgo_Febor.xlsx · '+now);
+      showLoad(false);
+      return;
+    }
+  } catch(e){
+    console.warn('[GitHub] No se pudo cargar Excel:', e.message);
+  }
+
+  // ── Fallback: datos guardados en storage ──
+  document.getElementById('lo').querySelector('.lt').textContent='Sin conexión — cargando datos guardados…';
   try{
     const saved=await loadFromStorage();
     if(saved && saved.allE && saved.allE.length>0){
-      allE=saved.allE;
-      allT=saved.allT||[];
-      loaded=true;
-      filtE=[...allE];filtT=[...allT];
+      allE=saved.allE; allT=saved.allT||[];
+      loaded=true; filtE=[...allE]; filtT=[...allT];
       document.getElementById('emptyBanner').style.display='none';
       document.getElementById('tcE').textContent=allE.length;
       document.getElementById('tcT').textContent=allT.length;
       updateLastLoadedBadge(saved.meta.fileName||'datos guardados', saved.meta.savedAt);
-      buildFiltersE();buildFiltersT();renderAll();
+      buildFiltersE(); buildFiltersT(); renderAll();
       showLoad(false);
     } else {
       showLoad(false);
