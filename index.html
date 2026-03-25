@@ -1081,16 +1081,9 @@ const STORAGE_META='gr_dashboard_meta';
 async function saveToStorage(fileName, evData, taData){
   try{
     const meta={fileName, savedAt:new Date().toISOString(), evCount:evData.length, taCount:taData.length};
+    await window.storage.set(STORAGE_META, JSON.stringify(meta));
     const payload=JSON.stringify({allE:evData, allT:taData});
-
-    if(window.storage && typeof window.storage.set === 'function'){
-      await window.storage.set(STORAGE_META, JSON.stringify(meta));
-      await window.storage.set(STORAGE_KEY, payload);
-    }else{
-      localStorage.setItem(STORAGE_META, JSON.stringify(meta));
-      localStorage.setItem(STORAGE_KEY, payload);
-    }
-
+    await window.storage.set(STORAGE_KEY, payload);
     console.log('[Storage] Saved OK:', meta);
   }catch(err){
     console.warn('[Storage] Save failed:', err);
@@ -1099,42 +1092,16 @@ async function saveToStorage(fileName, evData, taData){
 
 async function loadFromStorage(){
   try{
-    if(window.storage && typeof window.storage.get === 'function'){
-      const metaRes=await window.storage.get(STORAGE_META);
-      const dataRes=await window.storage.get(STORAGE_KEY);
-      if(!metaRes||!dataRes)return null;
-      const meta=JSON.parse(metaRes.value);
-      const data=JSON.parse(dataRes.value);
-      return{meta, allE:data.allE||[], allT:data.allT||[]};
-    }else{
-      const metaRaw=localStorage.getItem(STORAGE_META);
-      const dataRaw=localStorage.getItem(STORAGE_KEY);
-      if(!metaRaw||!dataRaw)return null;
-      const meta=JSON.parse(metaRaw);
-      const data=JSON.parse(dataRaw);
-      return{meta, allE:data.allE||[], allT:data.allT||[]};
-    }
+    const metaRes=await window.storage.get(STORAGE_META);
+    const dataRes=await window.storage.get(STORAGE_KEY);
+    if(!metaRes||!dataRes)return null;
+    const meta=JSON.parse(metaRes.value);
+    const data=JSON.parse(dataRes.value);
+    return{meta, allE:data.allE||[], allT:data.allT||[]};
   }catch(err){
     console.warn('[Storage] Load failed:', err);
     return null;
   }
-}
-
-function showDebug(msg, isError=false){
-  const panel=document.getElementById('debugPanel');
-  if(!panel)return;
-  panel.style.display='block';
-  panel.style.background=isError ? '#fdecea' : '#eef6ff';
-  panel.style.border=isError ? '1px solid #f2b0ab' : '1px solid #a0c0f0';
-  panel.style.color=isError ? '#7a1a14' : '#123d7a';
-  panel.innerHTML=msg;
-}
-
-function clearDebug(){
-  const panel=document.getElementById('debugPanel');
-  if(!panel)return;
-  panel.style.display='none';
-  panel.innerHTML='';
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2516,6 +2483,7 @@ function updateLastLoadedBadge(fileName, date){
 const GITHUB_JSON_URL = 'https://raw.githubusercontent.com/feboractividadeslibres-dot/Eventos-de-Riesgo-Febor/main/datos.json';
 const LOCAL_JSON_URL = './datos.json';
 
+
 function buildNoCacheUrl(url){
   const sep = url.includes('?') ? '&' : '?';
   return url + sep + 'ts=' + Date.now();
@@ -2523,116 +2491,123 @@ function buildNoCacheUrl(url){
 
 async function fetchJsonWithDebug(url, sourceName){
   console.log(`[${sourceName}] Intentando cargar:`, url);
-
-  const resp = await fetch(buildNoCacheUrl(url), {
-    cache: 'no-store'
-  });
-
-  if(!resp.ok){
-    throw new Error(`${sourceName} respondió ${resp.status} ${resp.statusText}`);
-  }
-
-  const contentType = resp.headers.get('content-type') || '';
-  if(!contentType.includes('application/json') && !contentType.includes('text/plain')){
-    console.warn(`[${sourceName}] Content-Type recibido:`, contentType);
-  }
-
-  const data = await resp.json();
-  console.log(`[${sourceName}] JSON cargado correctamente`);
-  return data;
+  const resp = await fetch(buildNoCacheUrl(url), { cache: 'no-store' });
+  if(!resp.ok) throw new Error(`${sourceName} respondió ${resp.status} ${resp.statusText}`);
+  return await resp.json();
 }
 
-function normalizeEventos(eventos){
-  return eventos.map(r => {
+function normalizeLoadedEventos(eventos){
+  return (eventos||[]).map(r => {
     const c = {};
     for(const k in r){
       c[k] = r[k];
-      const kn = k.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      const kn = String(k).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       if(kn !== k) c[kn] = r[k];
     }
     return c;
   });
 }
 
-function normalizeTareas(tareas){
-  return tareas.map(r => {
-    const c = {};
-    for(const k in r){
-      c[k] = r[k];
-      const kn = k.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-      if(kn !== k) c[kn] = r[k];
-    }
-    c['_NE']   = parseInt(c['N° EVENTO']||c['N° Evento']||c['NUMERO EVENTO']||0);
-    c['_NT']   = c['N° TAREA']||c['N° Tarea']||c['NUMERO TAREA']||'';
-    c['_DESC'] = c['DESCRIPCIÓN DE LA TAREA']||c['DESCRIPCION DE LA TAREA']||c['DESCRIPCION']||'';
-    c['_TIPO'] = (c['TIPO DE ACCIÓN']||c['TIPO DE ACCION']||'').toUpperCase().includes('PREV') ? 'PREVENTIVA' : 'CORRECTIVA';
-    c['_RESP'] = c['RESPONSABLE']||'';
-    c['_NOMB'] = c['NOMBRE']||'';
-    c['_FI']   = c['FECHA DE INICIO']||c['F. INICIO']||c['FECHA INICIO']||'';
-    c['_FF']   = c['FECHA DE FINALIZACIÓN']||c['FECHA DE FINALIZACION']||c['F. FINALIZACIÓN']||c['F. FIN']||'';
-    c['_EST']  = c['ESTADO']||'';
-    return c;
-  });
+function findTaskKey(obj, testFn){
+  return Object.keys(obj).find(k => testFn(String(k||'').replace(/\n/g,' ').replace(/\s+/g,' ').trim().toLowerCase()));
 }
 
-function applyLoadedData(eventos, tareas, sourceLabel, dateValue){
-  allE = normalizeEventos(eventos);
-  allT = normalizeTareas(tareas);
+function excelSerialToDateString(n){
+  const d = new Date((Number(n)-25569)*86400000);
+  return isNaN(d) ? '' : fdate(d);
+}
+
+function normalizeLoadedTareas(tareas){
+  const out = [];
+  (tareas||[]).forEach(r => {
+    const c = {};
+    for(const k in r){
+      let v = r[k];
+      if(v instanceof Date) v = fdate(v);
+      c[k] = v;
+      const kn = String(k).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      if(kn !== k) c[kn] = v;
+    }
+
+    const neKey   = findTaskKey(c, k => k.includes('evento') && (k.includes('n°') || k.includes('no ') || k.includes('numero')));
+    const ntKey   = findTaskKey(c, k => k.includes('tarea')  && (k.includes('n°') || k.includes('no ') || k.includes('numero')));
+    const descKey = findTaskKey(c, k => k.includes('descripci') && k.includes('tarea'));
+    const tipoKey = findTaskKey(c, k => k.includes('tipo') && (k.includes('accion') || k.includes('acción')));
+    const respKey = findTaskKey(c, k => k.includes('responsable'));
+    const nombKey = findTaskKey(c, k => k === 'nombre' || k.includes('nombre funcionario') || k.includes('nombre responsable'));
+    const fiKey   = findTaskKey(c, k => k.includes('fecha de inicio') || k == 'f. inicio' || k == 'inicio');
+    const ffKey   = findTaskKey(c, k => k.includes('finaliz') || k == 'f. fin' || k == 'fecha fin');
+    const estKey  = findTaskKey(c, k => k === 'estado' || k.includes('estado tarea'));
+
+    let ne = neKey ? c[neKey] : (c['_NE'] ?? '');
+    if(ne === '' || ne === null || ne === undefined) return;
+    const neInt = parseInt(ne);
+    if(isNaN(neInt) || neInt <= 0) return;
+
+    let fi = fiKey ? c[fiKey] : (c['_FI'] || '');
+    let ff = ffKey ? c[ffKey] : (c['_FF'] || '');
+    if(typeof fi === 'number' && fi > 10000) fi = excelSerialToDateString(fi);
+    if(typeof ff === 'number' && ff > 10000) ff = excelSerialToDateString(ff);
+    if(fi instanceof Date) fi = fdate(fi);
+    if(ff instanceof Date) ff = fdate(ff);
+
+    c['_NE']   = neInt;
+    c['_NT']   = parseInt(ntKey ? c[ntKey] : (c['_NT'] || 0)) || 0;
+    c['_DESC'] = String(descKey ? c[descKey] : (c['_DESC'] || c['DESCRIPCIÓN DE LA TAREA'] || c['DESCRIPCION DE LA TAREA'] || c['DESCRIPCION'] || '')).trim();
+    const tipoRaw = String(tipoKey ? c[tipoKey] : (c['_TIPO'] || '')).trim();
+    c['_TIPO'] = tipoRaw ? (tipoRaw.toUpperCase().includes('PREV') ? 'PREVENTIVA' : 'CORRECTIVA') : '';
+    c['_RESP'] = String(respKey ? c[respKey] : (c['_RESP'] || c['RESPONSABLE'] || '')).trim();
+    c['_NOMBRE'] = String(nombKey ? c[nombKey] : (c['_NOMBRE'] || c['_NOMB'] || c['NOMBRE'] || '')).trim();
+    c['_NOMB'] = c['_NOMBRE'];
+    c['_FI']   = String(fi || '').trim();
+    c['_FF']   = String(ff || '').trim();
+    const estRaw = String(estKey ? c[estKey] : (c['_EST'] || '')).trim();
+    c['_EST']  = estRaw || (c['_FF'] ? 'Cerrada' : 'En Proceso');
+    out.push(c);
+  });
+  return out;
+}
+
+function applyJsonData(data, sourceLabel){
+  const eventos = data.eventos || [];
+  const tareas  = data.tareas  || [];
+  if(!eventos.length) return false;
+
+  allE = normalizeLoadedEventos(eventos);
+  allT = normalizeLoadedTareas(tareas);
   loaded = true;
   filtE = [...allE];
   filtT = [...allT];
   document.getElementById('emptyBanner').style.display = 'none';
   document.getElementById('tcE').textContent = allE.length;
   document.getElementById('tcT').textContent = allT.length;
-  updateLastLoadedBadge(sourceLabel, dateValue || new Date());
+  updateLastLoadedBadge(sourceLabel, new Date());
   buildFiltersE();
   buildFiltersT();
   renderAll();
   saveToStorage('datos.json', allE, allT);
   showLoad(false);
+  return true;
 }
 
 async function bootDashboard(){
   showLoad(true);
-  clearDebug();
-  document.getElementById('lo').querySelector('.lt').textContent='Cargando datos desde el sitio publicado…';
+  document.getElementById('lo').querySelector('.lt').textContent='Cargando datos desde GitHub…';
 
-  // ── Intento 1: datos.json desde el mismo sitio publicado ──
+  // ── Intento 1: datos.json del mismo sitio publicado ──
   try{
     const data = await fetchJsonWithDebug(LOCAL_JSON_URL, 'LOCAL JSON');
-    const eventos = data.eventos || [];
-    const tareas  = data.tareas  || [];
-
-    if(eventos.length > 0){
-      applyLoadedData(eventos, tareas, 'Sitio publicado · datos.json', new Date());
-      return;
-    }else{
-      console.warn('[LOCAL JSON] El archivo cargó, pero no trae eventos.');
-      showDebug('El archivo datos.json del sitio se cargó, pero no trae registros en la clave <b>eventos</b>.', true);
-    }
-  }catch(e){
+    if(applyJsonData(data, 'Sitio publicado · datos actualizados')) return;
+  } catch(e){
     console.warn('[LOCAL JSON] Error:', e.message);
-    showDebug('No fue posible cargar <b>./datos.json</b> desde el sitio publicado. Se intentará GitHub RAW.<br><small>'+esc(e.message)+'</small>', true);
   }
 
-  // ── Intento 2: datos.json desde raw.githubusercontent ──
-  document.getElementById('lo').querySelector('.lt').textContent='Cargando datos desde GitHub RAW…';
+  // ── Intento 2: datos.json desde GitHub RAW ──
   try{
     const data = await fetchJsonWithDebug(GITHUB_JSON_URL, 'GITHUB RAW');
-    const eventos = data.eventos || [];
-    const tareas  = data.tareas  || [];
-
-    if(eventos.length > 0){
-      showDebug('Datos cargados correctamente desde GitHub RAW.', false);
-      applyLoadedData(eventos, tareas, 'GitHub RAW · datos.json', new Date());
-      return;
-    }else{
-      console.warn('[GITHUB RAW] El archivo cargó, pero no trae eventos.');
-      showDebug('GitHub RAW respondió, pero el archivo no contiene registros válidos en <b>eventos</b>.', true);
-    }
-  }catch(e){
-    console.warn('[GITHUB RAW] Error:', e.message);
-    showDebug('No fue posible cargar los datos ni desde el sitio publicado ni desde GitHub RAW. Se intentará usar la copia guardada localmente.<br><small>'+esc(e.message)+'</small>', true);
+    if(applyJsonData(data, 'GitHub · datos actualizados')) return;
+  } catch(e){
+    console.warn('[GitHub JSON] Error:', e.message);
   }
 
   // ── Fallback: caché local ──
@@ -2640,32 +2615,29 @@ async function bootDashboard(){
   try{
     const saved = await loadFromStorage();
     if(saved && saved.allE && saved.allE.length > 0){
-      allE = saved.allE;
-      allT = saved.allT || [];
-      loaded = true;
-      filtE = [...allE];
-      filtT = [...allT];
+      allE = saved.allE; allT = saved.allT || [];
+      loaded = true; filtE = [...allE]; filtT = [...allT];
       document.getElementById('emptyBanner').style.display = 'none';
       document.getElementById('tcE').textContent = allE.length;
       document.getElementById('tcT').textContent = allT.length;
       updateLastLoadedBadge(saved.meta.fileName||'caché local', saved.meta.savedAt);
-      buildFiltersE();
-      buildFiltersT();
-      renderAll();
+      buildFiltersE(); buildFiltersT(); renderAll();
       showLoad(false);
-      showDebug('Se cargó la última copia guardada en este navegador. Revisa si GitHub Pages está publicando el archivo actualizado.', true);
-    }else{
+    } else {
       showLoad(false);
-      showDebug('No se encontraron datos en línea ni copia local guardada. Verifica que <b>datos.json</b> exista en la raíz del repositorio y que GitHub Pages esté publicando desde <b>main / root</b>.', true);
     }
-  }catch(e){
+  } catch(e){
     console.warn('Boot load failed:', e);
     showLoad(false);
-    showDebug('La carga inicial falló completamente.<br><small>'+esc(e.message || String(e))+'</small>', true);
   }
 }
 // Run on page load
-bootDashboard();
+if(typeof window.storage !== 'undefined'){
+  bootDashboard();
+} else {
+  // storage not available in this environment, just hide loader
+  showLoad(false);
+}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 </script>
 </body>
