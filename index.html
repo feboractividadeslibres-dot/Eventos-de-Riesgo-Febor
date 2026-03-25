@@ -1081,9 +1081,16 @@ const STORAGE_META='gr_dashboard_meta';
 async function saveToStorage(fileName, evData, taData){
   try{
     const meta={fileName, savedAt:new Date().toISOString(), evCount:evData.length, taCount:taData.length};
-    await window.storage.set(STORAGE_META, JSON.stringify(meta));
     const payload=JSON.stringify({allE:evData, allT:taData});
-    await window.storage.set(STORAGE_KEY, payload);
+
+    if(window.storage && typeof window.storage.set === 'function'){
+      await window.storage.set(STORAGE_META, JSON.stringify(meta));
+      await window.storage.set(STORAGE_KEY, payload);
+    }else{
+      localStorage.setItem(STORAGE_META, JSON.stringify(meta));
+      localStorage.setItem(STORAGE_KEY, payload);
+    }
+
     console.log('[Storage] Saved OK:', meta);
   }catch(err){
     console.warn('[Storage] Save failed:', err);
@@ -1092,16 +1099,42 @@ async function saveToStorage(fileName, evData, taData){
 
 async function loadFromStorage(){
   try{
-    const metaRes=await window.storage.get(STORAGE_META);
-    const dataRes=await window.storage.get(STORAGE_KEY);
-    if(!metaRes||!dataRes)return null;
-    const meta=JSON.parse(metaRes.value);
-    const data=JSON.parse(dataRes.value);
-    return{meta, allE:data.allE||[], allT:data.allT||[]};
+    if(window.storage && typeof window.storage.get === 'function'){
+      const metaRes=await window.storage.get(STORAGE_META);
+      const dataRes=await window.storage.get(STORAGE_KEY);
+      if(!metaRes||!dataRes)return null;
+      const meta=JSON.parse(metaRes.value);
+      const data=JSON.parse(dataRes.value);
+      return{meta, allE:data.allE||[], allT:data.allT||[]};
+    }else{
+      const metaRaw=localStorage.getItem(STORAGE_META);
+      const dataRaw=localStorage.getItem(STORAGE_KEY);
+      if(!metaRaw||!dataRaw)return null;
+      const meta=JSON.parse(metaRaw);
+      const data=JSON.parse(dataRaw);
+      return{meta, allE:data.allE||[], allT:data.allT||[]};
+    }
   }catch(err){
     console.warn('[Storage] Load failed:', err);
     return null;
   }
+}
+
+function showDebug(msg, isError=false){
+  const panel=document.getElementById('debugPanel');
+  if(!panel)return;
+  panel.style.display='block';
+  panel.style.background=isError ? '#fdecea' : '#eef6ff';
+  panel.style.border=isError ? '1px solid #f2b0ab' : '1px solid #a0c0f0';
+  panel.style.color=isError ? '#7a1a14' : '#123d7a';
+  panel.innerHTML=msg;
+}
+
+function clearDebug(){
+  const panel=document.getElementById('debugPanel');
+  if(!panel)return;
+  panel.style.display='none';
+  panel.innerHTML='';
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2481,60 +2514,125 @@ function updateLastLoadedBadge(fileName, date){
 
 // URL del JSON generado automáticamente por GitHub Actions
 const GITHUB_JSON_URL = 'https://raw.githubusercontent.com/feboractividadeslibres-dot/Eventos-de-Riesgo-Febor/main/datos.json';
+const LOCAL_JSON_URL = './datos.json';
+
+function buildNoCacheUrl(url){
+  const sep = url.includes('?') ? '&' : '?';
+  return url + sep + 'ts=' + Date.now();
+}
+
+async function fetchJsonWithDebug(url, sourceName){
+  console.log(`[${sourceName}] Intentando cargar:`, url);
+
+  const resp = await fetch(buildNoCacheUrl(url), {
+    cache: 'no-store'
+  });
+
+  if(!resp.ok){
+    throw new Error(`${sourceName} respondió ${resp.status} ${resp.statusText}`);
+  }
+
+  const contentType = resp.headers.get('content-type') || '';
+  if(!contentType.includes('application/json') && !contentType.includes('text/plain')){
+    console.warn(`[${sourceName}] Content-Type recibido:`, contentType);
+  }
+
+  const data = await resp.json();
+  console.log(`[${sourceName}] JSON cargado correctamente`);
+  return data;
+}
+
+function normalizeEventos(eventos){
+  return eventos.map(r => {
+    const c = {};
+    for(const k in r){
+      c[k] = r[k];
+      const kn = k.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      if(kn !== k) c[kn] = r[k];
+    }
+    return c;
+  });
+}
+
+function normalizeTareas(tareas){
+  return tareas.map(r => {
+    const c = {};
+    for(const k in r){
+      c[k] = r[k];
+      const kn = k.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      if(kn !== k) c[kn] = r[k];
+    }
+    c['_NE']   = parseInt(c['N° EVENTO']||c['N° Evento']||c['NUMERO EVENTO']||0);
+    c['_NT']   = c['N° TAREA']||c['N° Tarea']||c['NUMERO TAREA']||'';
+    c['_DESC'] = c['DESCRIPCIÓN DE LA TAREA']||c['DESCRIPCION DE LA TAREA']||c['DESCRIPCION']||'';
+    c['_TIPO'] = (c['TIPO DE ACCIÓN']||c['TIPO DE ACCION']||'').toUpperCase().includes('PREV') ? 'PREVENTIVA' : 'CORRECTIVA';
+    c['_RESP'] = c['RESPONSABLE']||'';
+    c['_NOMB'] = c['NOMBRE']||'';
+    c['_FI']   = c['FECHA DE INICIO']||c['F. INICIO']||c['FECHA INICIO']||'';
+    c['_FF']   = c['FECHA DE FINALIZACIÓN']||c['FECHA DE FINALIZACION']||c['F. FINALIZACIÓN']||c['F. FIN']||'';
+    c['_EST']  = c['ESTADO']||'';
+    return c;
+  });
+}
+
+function applyLoadedData(eventos, tareas, sourceLabel, dateValue){
+  allE = normalizeEventos(eventos);
+  allT = normalizeTareas(tareas);
+  loaded = true;
+  filtE = [...allE];
+  filtT = [...allT];
+  document.getElementById('emptyBanner').style.display = 'none';
+  document.getElementById('tcE').textContent = allE.length;
+  document.getElementById('tcT').textContent = allT.length;
+  updateLastLoadedBadge(sourceLabel, dateValue || new Date());
+  buildFiltersE();
+  buildFiltersT();
+  renderAll();
+  saveToStorage('datos.json', allE, allT);
+  showLoad(false);
+}
 
 async function bootDashboard(){
   showLoad(true);
-  document.getElementById('lo').querySelector('.lt').textContent='Cargando datos desde GitHub…';
+  clearDebug();
+  document.getElementById('lo').querySelector('.lt').textContent='Cargando datos desde el sitio publicado…';
 
-  // ── Cargar datos.json desde GitHub ──
+  // ── Intento 1: datos.json desde el mismo sitio publicado ──
   try{
-    const resp = await fetch(GITHUB_JSON_URL + '?t=' + Date.now());
-    if(resp.ok){
-      const data = await resp.json();
-      const eventos = data.eventos || [];
-      const tareas  = data.tareas  || [];
-      if(eventos.length > 0){
-        allE = eventos.map(r => {
-          const c = {};
-          for(const k in r){
-            c[k] = r[k];
-            const kn = k.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-            if(kn !== k) c[kn] = r[k];
-          }
-          return c;
-        });
-        allT = tareas.map(r => {
-          const c = {};
-          for(const k in r){
-            c[k] = r[k];
-            const kn = k.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-            if(kn !== k) c[kn] = r[k];
-          }
-          c['_NE']   = parseInt(c['N° EVENTO']||c['N° Evento']||c['NUMERO EVENTO']||0);
-          c['_NT']   = c['N° TAREA']||c['N° Tarea']||c['NUMERO TAREA']||'';
-          c['_DESC'] = c['DESCRIPCIÓN DE LA TAREA']||c['DESCRIPCION DE LA TAREA']||c['DESCRIPCION']||'';
-          c['_TIPO'] = (c['TIPO DE ACCIÓN']||c['TIPO DE ACCION']||'').toUpperCase().includes('PREV') ? 'PREVENTIVA' : 'CORRECTIVA';
-          c['_RESP'] = c['RESPONSABLE']||'';
-          c['_NOMB'] = c['NOMBRE']||'';
-          c['_FI']   = c['FECHA DE INICIO']||c['F. INICIO']||c['FECHA INICIO']||'';
-          c['_FF']   = c['FECHA DE FINALIZACIÓN']||c['FECHA DE FINALIZACION']||c['F. FINALIZACIÓN']||c['F. FIN']||'';
-          c['_EST']  = c['ESTADO']||'';
-          return c;
-        });
-        loaded = true;
-        filtE = [...allE]; filtT = [...allT];
-        document.getElementById('emptyBanner').style.display = 'none';
-        document.getElementById('tcE').textContent = allE.length;
-        document.getElementById('tcT').textContent = allT.length;
-        updateLastLoadedBadge('GitHub · datos actualizados', new Date());
-        buildFiltersE(); buildFiltersT(); renderAll();
-        saveToStorage('datos.json', allE, allT);
-        showLoad(false);
-        return;
-      }
+    const data = await fetchJsonWithDebug(LOCAL_JSON_URL, 'LOCAL JSON');
+    const eventos = data.eventos || [];
+    const tareas  = data.tareas  || [];
+
+    if(eventos.length > 0){
+      applyLoadedData(eventos, tareas, 'Sitio publicado · datos.json', new Date());
+      return;
+    }else{
+      console.warn('[LOCAL JSON] El archivo cargó, pero no trae eventos.');
+      showDebug('El archivo datos.json del sitio se cargó, pero no trae registros en la clave <b>eventos</b>.', true);
     }
-  } catch(e){
-    console.warn('[GitHub JSON] Error:', e.message);
+  }catch(e){
+    console.warn('[LOCAL JSON] Error:', e.message);
+    showDebug('No fue posible cargar <b>./datos.json</b> desde el sitio publicado. Se intentará GitHub RAW.<br><small>'+esc(e.message)+'</small>', true);
+  }
+
+  // ── Intento 2: datos.json desde raw.githubusercontent ──
+  document.getElementById('lo').querySelector('.lt').textContent='Cargando datos desde GitHub RAW…';
+  try{
+    const data = await fetchJsonWithDebug(GITHUB_JSON_URL, 'GITHUB RAW');
+    const eventos = data.eventos || [];
+    const tareas  = data.tareas  || [];
+
+    if(eventos.length > 0){
+      showDebug('Datos cargados correctamente desde GitHub RAW.', false);
+      applyLoadedData(eventos, tareas, 'GitHub RAW · datos.json', new Date());
+      return;
+    }else{
+      console.warn('[GITHUB RAW] El archivo cargó, pero no trae eventos.');
+      showDebug('GitHub RAW respondió, pero el archivo no contiene registros válidos en <b>eventos</b>.', true);
+    }
+  }catch(e){
+    console.warn('[GITHUB RAW] Error:', e.message);
+    showDebug('No fue posible cargar los datos ni desde el sitio publicado ni desde GitHub RAW. Se intentará usar la copia guardada localmente.<br><small>'+esc(e.message)+'</small>', true);
   }
 
   // ── Fallback: caché local ──
@@ -2542,29 +2640,32 @@ async function bootDashboard(){
   try{
     const saved = await loadFromStorage();
     if(saved && saved.allE && saved.allE.length > 0){
-      allE = saved.allE; allT = saved.allT || [];
-      loaded = true; filtE = [...allE]; filtT = [...allT];
+      allE = saved.allE;
+      allT = saved.allT || [];
+      loaded = true;
+      filtE = [...allE];
+      filtT = [...allT];
       document.getElementById('emptyBanner').style.display = 'none';
       document.getElementById('tcE').textContent = allE.length;
       document.getElementById('tcT').textContent = allT.length;
       updateLastLoadedBadge(saved.meta.fileName||'caché local', saved.meta.savedAt);
-      buildFiltersE(); buildFiltersT(); renderAll();
+      buildFiltersE();
+      buildFiltersT();
+      renderAll();
       showLoad(false);
-    } else {
+      showDebug('Se cargó la última copia guardada en este navegador. Revisa si GitHub Pages está publicando el archivo actualizado.', true);
+    }else{
       showLoad(false);
+      showDebug('No se encontraron datos en línea ni copia local guardada. Verifica que <b>datos.json</b> exista en la raíz del repositorio y que GitHub Pages esté publicando desde <b>main / root</b>.', true);
     }
-  } catch(e){
+  }catch(e){
     console.warn('Boot load failed:', e);
     showLoad(false);
+    showDebug('La carga inicial falló completamente.<br><small>'+esc(e.message || String(e))+'</small>', true);
   }
 }
 // Run on page load
-if(typeof window.storage !== 'undefined'){
-  bootDashboard();
-} else {
-  // storage not available in this environment, just hide loader
-  showLoad(false);
-}
+bootDashboard();
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 </script>
 </body>
